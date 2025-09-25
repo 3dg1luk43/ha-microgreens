@@ -1,0 +1,61 @@
+profile_upsert:
+  name: Add/Update Profile
+  fields:
+    id: {description: "Profile ID", example: rukola}
+    name: {description: "Human name", example: Rukola}
+    cover_days: {description: "Days covered", example: 3}
+    uncover_days: {description: "Days uncovered", example: 8}
+    watering_frequency_days: {description: "Water every N days", example: 1}
+    notes: {description: "Notes", example: "Fast grower"}
+
+profile_delete:
+  name: Delete Profile
+  fields:
+    id: {description: "Profile ID", example: rukola}
+
+plot_add:
+  name: Add Plot
+  fields:
+    plot_id: {description: "Plot ID", example: A1}
+    label: {description: "Label", example: "Plot A1"}
+
+plot_remove:
+  name: Remove Plot
+  fields:
+    plot_id: {description: "Plot ID", example: A1}
+
+deploy:
+  name: Create Deployment
+  fields:
+    plot_id: {description: "Plot ID", example: A1}
+    profile_id: {description: "Profile ID", example: rukola}
+    start_date: {description: "YYYY-MM-DD", example: "2025-10-01"}
+    sticker: {description: "Sticker code", example: "A1-2410"}
+
+harvest:
+  name: Harvest plot
+  fields:
+    plot_id: {description: "Plot ID", example: A1}
+
+unassign:
+  name: Unassign plot
+  fields:
+    plot_id: {description: "Plot ID", example: A1}
+
+water_ack:
+  name: Mark watered
+  fields:
+    plot_id: { description: "Plot ID", example: A1 }
+    days: { description: "Override next due by N days (default: watering_every_days)", example: 1 }
+
+shift_schedule:
+  name: Shift schedule by days
+  fields:
+    plot_id: { description: "Plot ID", example: A1 }
+    days: { description: "Positive or negative integer", example: -1 }
+
+plot_rename:
+  name: Rename plot
+  fields:
+    plot_id: { description: "Plot ID", example: A1 }
+    label: { description: "New label", example: "Tray A1 (top)" }

@@ -1,0 +1,12 @@
+DOMAIN = "microgreens"
+STORAGE_VERSION = 1
+STORAGE_KEY = DOMAIN
+
+SIGNAL_DATA_UPDATED = f"{DOMAIN}_data_updated"
+SIGNAL_NEW_PLOT = f"{DOMAIN}_new_plot"
+
+DEFAULT_TITLE_PREFIX = "[Microgreens]"
+DEFAULT_CALENDAR = "calendar.microgreens"
+DEFAULT_NOTIFY = "notify.notify"
+DEFAULT_WATERING_TIME = "09:30:00"  # HH:MM:SS
+DEFAULT_SUMMARY_TIME = "08:30:00"
