@@ -4,6 +4,7 @@ STORAGE_KEY = DOMAIN
 
 SIGNAL_DATA_UPDATED = f"{DOMAIN}_data_updated"
 SIGNAL_NEW_PLOT = f"{DOMAIN}_new_plot"
+SIGNAL_REMOVE_PLOT = f"{DOMAIN}_remove_plot"
 
 DEFAULT_TITLE_PREFIX = "[Microgreens]"
 DEFAULT_CALENDAR = "calendar.microgreens"

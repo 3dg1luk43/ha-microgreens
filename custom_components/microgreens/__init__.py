@@ -17,9 +17,11 @@ from homeassistant.helpers import storage, dispatcher, event as ha_event
 from .const import (
     DOMAIN, STORAGE_KEY, STORAGE_VERSION,
     SIGNAL_DATA_UPDATED, SIGNAL_NEW_PLOT,
+    SIGNAL_REMOVE_PLOT,
     DEFAULT_CALENDAR, DEFAULT_NOTIFY, DEFAULT_TITLE_PREFIX,
     DEFAULT_WATERING_TIME, DEFAULT_SUMMARY_TIME,
 )
+
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]  # <-- add CALENDAR
 
@@ -248,6 +250,8 @@ class Runtime:
         self.data.deployments = [d for d in self.data.deployments if d.plot_id != plot_id]
         _LOGGER.info("Removed plot %s", plot_id)
         await self._save_and_broadcast()
+        # notify sensor platform to remove the entity
+        dispatcher.async_dispatcher_send(self.hass, SIGNAL_REMOVE_PLOT, plot_id)
 
     # ----- in Runtime.deploy(): no calendar service call, just state update
     async def deploy(self, plot_id: str, profile_id: str, start_date: str, sticker: Optional[str] = None):

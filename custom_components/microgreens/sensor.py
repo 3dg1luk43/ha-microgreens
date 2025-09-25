@@ -5,20 +5,65 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
-from .const import DOMAIN, SIGNAL_DATA_UPDATED, SIGNAL_NEW_PLOT
+from homeassistant.helpers import entity_registry as er
+from .const import DOMAIN, SIGNAL_DATA_UPDATED, SIGNAL_NEW_PLOT, SIGNAL_REMOVE_PLOT
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     rt = hass.data[DOMAIN][entry.entry_id]
 
-    entities = [MicrogreensMetaSensor(rt)]
-    for p in rt.data.plots:
-        entities.append(MicrogreensPlotSensor(rt, p.id))
-    async_add_entities(entities)
+    # book-keeping of plot entities we create
+    created: dict[str, MicrogreensPlotSensor] = {}
 
+    # seed entities
+    ents = [MicrogreensMetaSensor(rt)]
+    for p in rt.data.plots:
+        e = MicrogreensPlotSensor(rt, p.id)
+        created[p.id] = e
+        ents.append(e)
+    async_add_entities(ents)
+
+    # handle dynamic add
     @callback
     def _on_new_plot(plot_id: str):
-        async_add_entities([MicrogreensPlotSensor(rt, plot_id)])
+        if plot_id in created:
+            return
+        e = MicrogreensPlotSensor(rt, plot_id)
+        created[plot_id] = e
+        async_add_entities([e])
+
+    # handle dynamic remove
+    @callback
+    def _on_remove_plot(plot_id: str):
+        # 1) remove the running entity
+        ent = created.pop(plot_id, None)
+        if ent:
+            ent.async_remove()
+
+        # 2) purge entity registry entry (so it doesn’t linger as orphan)
+        reg = er.async_get(hass)
+        unique_id = f"{rt.entry.entry_id}_plot_{plot_id}"
+        ent_id = reg.async_get_entity_id("sensor", DOMAIN, unique_id)
+        if ent_id:
+            reg.async_remove(ent_id)
+
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_NEW_PLOT, _on_new_plot))
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_REMOVE_PLOT, _on_remove_plot))
+
+    # --- one-time startup cleanup: purge registry entries for plots that no longer exist
+    reg = er.async_get(hass)
+    existing_plots = {p.id for p in rt.data.plots}
+    # iterate over all registry entries for this integration+platform
+    for ent_entry in list(reg.entities.values()):
+        if ent_entry.domain != "sensor" or ent_entry.platform != DOMAIN:
+            continue
+        # our unique_id format: "<entry_id>_plot_<plot_id>"
+        if not ent_entry.unique_id.startswith(f"{entry.entry_id}_plot_"):
+            continue
+        plot_id = ent_entry.unique_id.split("_plot_", 1)[-1]
+        if plot_id not in existing_plots:
+            reg.async_remove(ent_entry.entity_id)
+
 
 class _Base(SensorEntity):
     @property
