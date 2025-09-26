@@ -73,11 +73,11 @@ Tracks plots, plant profiles, deployments, phases (covered / uncovered / mature)
 
 - **Plots**: `A1..A6` with labels “Plot A1”…“Plot A6”.
 - **Profiles**:
-  - Rukola (`rukola`) – cover 3, uncover 8, water 1
-  - Koriandr (`koriandr`) – cover 6, uncover 19, water 1
-  - Ředkvička (`redkvicka`) – cover 4, uncover 10, water 1
-  - Hrášek (`hrasek`) – cover 5, uncover 16, water 1
-  - Hořčice (`horcice`) – cover 3, uncover 11, water 1
+  - Rukola (`arugula`) – cover 3, uncover 8, water 1
+  - Coriander (`coriander`) – cover 6, uncover 19, water 1
+  - Radish (`radish`) – cover 4, uncover 10, water 1
+  - Pea (`pea`) – cover 5, uncover 16, water 1
+  - Mustard (`mustard`) – cover 3, uncover 11, water 1
 
 ---
 
@@ -87,8 +87,8 @@ Tracks plots, plant profiles, deployments, phases (covered / uncovered / mature)
 Attributes:
 ```yaml
 profiles:
-  - id: rukola
-    name: Rukola
+  - id: arugula
+    name: Arugula
     cover_days: 3
     uncover_days: 8
     water: 1
@@ -108,8 +108,8 @@ Attributes:
 ```yaml
 plot_id: A1
 sticker: A1
-plant_id: rukola
-plant_name: Rukola
+plant_id: arugula
+plant_name: Arugula
 days_since_planting: 2
 cover_end: 2025-10-01
 harvest_date: 2025-10-09
@@ -129,8 +129,8 @@ Create or update a plant profile.
 ```yaml
 service: microgreens.profile_upsert
 data:
-  id: rukola
-  name: Rukola
+  id: arugula
+  name: Arugula
   cover_days: 3
   uncover_days: 8
   watering_frequency_days: 1
@@ -141,7 +141,7 @@ data:
 
 ```yaml
 service: microgreens.profile_delete
-data: { id: rukola }
+data: { id: arugula }
 ```
 
 ### `microgreens.plot_add`
@@ -173,7 +173,7 @@ Assign a profile to a plot from a date (YYYY-MM-DD).
 service: microgreens.deploy
 data:
   plot_id: A1
-  profile_id: rukola
+  profile_id: arugula
   start_date: "2025-09-26"
   # sticker: "A1"  # optional; defaults to plot id
 ```
