@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from importlib import resources
+import os
 from dataclasses import dataclass, field, asdict
 from dataclasses import fields as dc_fields
 from datetime import date, time, timedelta
@@ -26,6 +28,8 @@ from .const import (
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]  # <-- add CALENDAR
 
 _LOGGER = logging.getLogger(__name__)
+_FRONTEND_URL_BASE = "/microgreens-frontend"
+_FRONTEND_FILES = ("microgreens-card.js", "microgreens-plot-card.js")
 
 
 
@@ -335,12 +339,56 @@ class Runtime:
 
 # --------------------------- HA entry points ---------------------------
 
+def _register_static_frontend(hass: HomeAssistant) -> str:
+    """Expose package 'frontend/' under a static URL and return the base url."""
+    pkg_dir = resources.files(__package__) / "frontend"
+    path = str(pkg_dir)
+    # Register only once
+    for route in getattr(hass.http, "_static_paths", set()):
+        if getattr(route, "prefix", "") == _FRONTEND_URL_BASE:
+            break
+    else:
+        hass.http.register_static_path(_FRONTEND_URL_BASE, path, cache_headers=True)
+        _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
+    return _FRONTEND_URL_BASE
+
+def _inject_resources(hass: HomeAssistant, base_url: str) -> None:
+    """Ask frontend to always load our modules."""
+    try:
+        # HA provides these utilities to auto-load JS modules
+        from homeassistant.components.frontend import add_extra_module_url
+        for name in _FRONTEND_FILES:
+            url = f"{base_url}/{name}"
+            add_extra_module_url(hass, url)
+            _LOGGER.debug("Microgreens: added extra module url: %s", url)
+    except Exception as exc:
+        # Fallback: copy to /local and log the URLs
+        _LOGGER.warning("Microgreens: add_extra_module_url unavailable (%s); falling back to copy into /local.", exc)
+        _copy_frontend_to_www(hass)
+
+def _copy_frontend_to_www(hass: HomeAssistant) -> None:
+    """Copy JS modules to /config/www/microgreens/ (served as /local/microgreens/...)."""
+    import shutil
+    target = hass.config.path("www", "microgreens")
+    os.makedirs(target, exist_ok=True)
+    src_dir = resources.files(__package__) / "frontend"
+    for name in _FRONTEND_FILES:
+        with resources.as_file(src_dir / name) as src:
+            shutil.copy2(str(src), os.path.join(target, name))
+    _LOGGER.warning(
+        "Microgreens: frontend copied to /local/microgreens/. If the UI does not load the cards automatically, "
+        "add Lovelace resources:\n  /local/microgreens/microgreens-card.js (type: module)\n  /local/microgreens/microgreens-plot-card.js (type: module)"
+    )
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    base = _register_static_frontend(hass)
+    _inject_resources(hass, base)
     rt = Runtime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rt
     await rt.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     rt: Runtime = hass.data[DOMAIN][entry.entry_id]
@@ -407,6 +455,10 @@ def _register_services(self: Runtime):
             call.data["start_date"], call.data.get("sticker")
         )
 
+    async def _svc_reinstall_frontend(call):
+        base = _register_static_frontend(hass)
+        _inject_resources(hass, base)
+
     async def harvest(call: ServiceCall):
         _LOGGER.debug("Service harvest: %s", call.data)
         await self.harvest(call.data["plot_id"])
@@ -422,6 +474,7 @@ def _register_services(self: Runtime):
     hass.services.async_register(DOMAIN, "deploy", deploy, schema=SERVICE_DEPLOY_SCHEMA)
     hass.services.async_register(DOMAIN, "harvest", harvest, schema=vol.Schema({vol.Required("plot_id"): str}))
     hass.services.async_register(DOMAIN, "unassign", unassign, schema=vol.Schema({vol.Required("plot_id"): str}))
+    hass.services.async_register(DOMAIN, "reinstall_frontend", _svc_reinstall_frontend)
 
     async def shift_schedule(call):
         from datetime import date as _date, timedelta

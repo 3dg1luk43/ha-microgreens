@@ -1,90 +1,133 @@
-# Microgreens – Home Assistant Integration
+# Microgreens – Home Assistant Integration + Lovelace Cards
 
-**Grow-cycle orchestration for microgreens inside Home Assistant.**  
-Tracks plots, plant profiles, deployments, phases (covered / uncovered / mature), watering cadence, daily summaries, and (optionally) calendar events.
+**Grow-cycle orchestration for microgreens inside Home Assistant, with a full Lovelace UI.**
+This repository combines both the backend integration and the frontend cards:
 
-> ⚠️ This integration is **designed to be used together** with the Lovelace UI plugin:
-> **Microgreens Card** → https://github.com/3dg1luk43/lovelace-microgreens-card  
-> Install both for the full experience (management UI, modals, single-plot card).
+* **Integration** – entities, services, notifications, calendar integration.
+* **Cards** – `microgreens-card` (full dashboard) and `microgreens-plot-card` (single plot).
 
 ---
 
 ## Features
 
-- **Plant profiles**: cover/uncover durations, watering cadence, notes.
-- **Plots**: arbitrary IDs (A1, A2, …), labels, add/remove/rename.
-- **Deployments**: schedule a profile on a plot from a start date.
-- **Entities**
-  - `sensor.microgreens_meta` – current profiles + plots (UI reads this).
-  - `sensor.microgreens_plot_<ID>` – per-plot state (`idle`, `covered`, `uncovered`, `mature`) with attributes:
-    - `plot_id`, `sticker`, `plant_id`, `plant_name`
-    - `days_since_planting`, `cover_end`, `harvest_date`, `next_watering_due`
-- **Notifications**
-  - Daily summary at configurable time (phase changes + harvests).
-  - Watering reminder at configurable time (per watering frequency).
-- **Calendar (optional)**
-  - If a calendar entity is configured, a **single all-day event spanning start→harvest** is created on deploy (idempotent per plot) and removed on clear.
-- **Services** for automations and UI:
-  - `microgreens.profile_upsert`, `microgreens.profile_delete`
-  - `microgreens.plot_add`, `microgreens.plot_remove`, `microgreens.plot_rename`
-  - `microgreens.deploy`, `microgreens.unassign` (clear plot)
-  - `microgreens.shift_schedule` (optional utility), `microgreens.seed_defaults`
+### Integration
+
+* **Plant profiles**
+  Define cover/uncover durations, watering cadence, and notes.
+* **Plots**
+  Arbitrary IDs (A1, A2, …), labels, add/remove/rename.
+* **Deployments**
+  Schedule a profile on a plot from a start date.
+* **Entities**
+
+  * `sensor.microgreens_meta` – current profiles + plots (UI reads this).
+  * `sensor.microgreens_plot_<ID>` – per-plot state (`idle`, `covered`, `uncovered`, `mature`) with attributes:
+
+    * `plot_id`, `sticker`, `plant_id`, `plant_name`
+    * `days_since_planting`, `cover_end`, `harvest_date`, `next_watering_due`
+* **Notifications**
+
+  * Daily summary at configurable time.
+  * Watering reminder at configurable time.
+* **Calendar (optional)**
+
+  * If configured, one all-day event per deployment (start → harvest).
+* **Services**
+
+  * `microgreens.profile_upsert`, `microgreens.profile_delete`
+  * `microgreens.plot_add`, `microgreens.plot_remove`, `microgreens.plot_rename`
+  * `microgreens.deploy`, `microgreens.unassign`
+  * Utilities: `microgreens.shift_schedule`, `microgreens.seed_defaults`
+
+### Cards
+
+* **`microgreens-card`** – full dashboard:
+
+  * Deploy modal (idle plot + profile + start date).
+  * Profiles modal (add/edit/delete with validation, ✓ flash on save).
+  * Plots modal (add/rename/delete, ✓ flash on save).
+  * Responsive grid of plot tiles showing state, plant, dates, with a **Clear** button (confirmation + ✓ animation).
+* **`microgreens-plot-card`** – compact card for a single plot:
+
+  * Displays state, plant, uncover/harvest dates.
+  * Properties:
+
+    * `plot_id` (required) – e.g. `A1`
+    * `title` (optional) – override title
+    * `compact` (optional, boolean)
 
 ---
 
 ## Requirements
 
-- Home Assistant 2024.6+ (tested on current).
-- (Optional) A Calendar integration that supports `calendar.create_event` and `calendar.delete_event`.
-- (Recommended) The companion UI plugin:
-  - https://github.com/3dg1luk43/lovelace-microgreens-card
+* Home Assistant 2024.6+ (tested).
+* Optional: Calendar integration with `calendar.create_event` / `calendar.delete_event`.
+* No separate card installation needed: cards ship with the integration and auto-load.
 
 ---
 
 ## Installation (HACS – Custom Repository)
 
-1. **HACS → Integrations →** ⋯ **Custom repositories**
-   - URL: `https://github.com/3dg1luk43/ha-microgreens`
-   - Category: **Integration**
-2. Install **Microgreens**, then **Restart Home Assistant**.
-3. **Settings → Devices & services → “+ Add Integration” → Microgreens**  
-   This creates one config entry; settings are in the **gear (Options)**.
+1. **HACS → Integrations →** **Custom repositories**
 
-> Install the **Lovelace plugin** from  
-> `https://github.com/3dg1luk43/lovelace-microgreens-card` (HACS → Frontend).
+   * URL: `https://github.com/3dg1luk43/ha-microgreens`
+   * Category: **Integration**
+2. Install **Microgreens**, then **Restart Home Assistant**.
+3. **Settings → Devices & services → “+ Add Integration” → Microgreens**
+   Configure options (calendar, notify service, times).
+4. The Lovelace cards are installed automatically.
+   Add them to your dashboards:
+
+   ```yaml
+   type: custom:microgreens-card
+   ```
+
+   or
+
+   ```yaml
+   type: custom:microgreens-plot-card
+   plot_id: A1
+   ```
+
+No manual resource configuration is required on current HA versions.
+On older HA cores without `add_extra_module_url`, the integration falls back to copying to `/local/microgreens/`.
 
 ---
 
-## Configuration (Options / Gear icon)
+## Configuration (Options)
 
-- **Calendar entity**: target calendar (optional). If set and supported, deploy/clear manage a single all-day event per plot.  
-- **Notify service**: `notify.<service>` to receive daily summary & watering reminders.
-- **Title prefix**: text prefix for calendar summaries (e.g., `[Microgreens]`).
-- **Watering time**: HH:MM[:SS] local time for watering reminder.
-- **Daily summary time**: HH:MM[:SS] local time for the daily status digest.
+* **Calendar entity** – optional, adds start→harvest events per plot.
+* **Notify service** – e.g. `notify.mobile_app_pixel_7`.
+* **Title prefix** – prepended to calendar event summaries.
+* **Watering time** – time of daily watering reminder.
+* **Daily summary time** – time of daily digest notification.
 
-> Tips
-> - If the notify dropdown is empty, you can type a service manually (e.g., `notify.mobile_app_pixel_7`).
-> - Times accept 24-hour `HH:MM` or `HH:MM:SS`.
+**Tips**
+
+* If the notify dropdown is empty, type the service manually (`notify.mobile_app_*`).
+* Times accept `HH:MM` or `HH:MM:SS`.
 
 ---
 
 ## Default data (first start)
 
-- **Plots**: `A1..A6` with labels “Plot A1”…“Plot A6”.
-- **Profiles**:
-  - Rukola (`arugula`) – cover 3, uncover 8, water 1
-  - Coriander (`coriander`) – cover 6, uncover 19, water 1
-  - Radish (`radish`) – cover 4, uncover 10, water 1
-  - Pea (`pea`) – cover 5, uncover 16, water 1
-  - Mustard (`mustard`) – cover 3, uncover 11, water 1
+* **Plots**: `A1..A6` with labels “Plot A1”…“Plot A6”.
+* **Profiles**:
+
+  * Arugula – cover 3, uncover 8, water 1
+  * Coriander – cover 6, uncover 19, water 1
+  * Radish – cover 4, uncover 10, water 1
+  * Pea – cover 5, uncover 16, water 1
+  * Mustard – cover 3, uncover 11, water 1
 
 ---
 
 ## Entities
 
 ### `sensor.microgreens_meta`
-Attributes:
+
+Example attributes:
+
 ```yaml
 profiles:
   - id: arugula
@@ -96,16 +139,15 @@ profiles:
 plots:
   - id: A1
     label: Plot A1
-  ...
 icon: mdi:database-cog
-````
+```
 
 ### `sensor.microgreens_plot_<ID>`
 
-State: `idle` | `covered` | `uncovered` | `mature`
-Attributes:
+Example:
 
 ```yaml
+state: covered
 plot_id: A1
 sticker: A1
 plant_id: arugula
@@ -120,7 +162,7 @@ next_watering_due: 2025-09-27
 
 ## Services
 
-> Invoke from Developer Tools → Services (UI or YAML), from automations, or the UI cards.
+Invoke from Developer Tools → Services, automations, or cards.
 
 ### `microgreens.profile_upsert`
 
@@ -141,33 +183,39 @@ data:
 
 ```yaml
 service: microgreens.profile_delete
-data: { id: arugula }
+data:
+  id: arugula
 ```
 
 ### `microgreens.plot_add`
 
 ```yaml
 service: microgreens.plot_add
-data: { plot_id: "B1", label: "Tray B1" }
+data:
+  plot_id: B1
+  label: Tray B1
 ```
 
 ### `microgreens.plot_remove`
 
 ```yaml
 service: microgreens.plot_remove
-data: { plot_id: "B1" }
+data:
+  plot_id: B1
 ```
 
 ### `microgreens.plot_rename`
 
 ```yaml
 service: microgreens.plot_rename
-data: { plot_id: "A1", label: "Plot-3" }
+data:
+  plot_id: A1
+  label: Plot-3
 ```
 
 ### `microgreens.deploy`
 
-Assign a profile to a plot from a date (YYYY-MM-DD).
+Deploy a profile to a plot.
 
 ```yaml
 service: microgreens.deploy
@@ -175,30 +223,33 @@ data:
   plot_id: A1
   profile_id: arugula
   start_date: "2025-09-26"
-  # sticker: "A1"  # optional; defaults to plot id
+  # sticker: "A1"  # optional, defaults to plot id
 ```
 
 ### `microgreens.unassign`
 
-Clear a plot (removes deployment and calendar event).
+Clear a plot.
 
 ```yaml
 service: microgreens.unassign
-data: { plot_id: A1 }
+data:
+  plot_id: A1
 ```
 
-### `microgreens.shift_schedule`  *(optional utility)*
+### `microgreens.shift_schedule`
 
-Shift all dates for one plot by `days`. Positive → future, negative → past.
+Shift all dates for one plot.
 
 ```yaml
 service: microgreens.shift_schedule
-data: { plot_id: A1, days: 1 }
+data:
+  plot_id: A1
+  days: 1
 ```
 
 ### `microgreens.seed_defaults`
 
-Re-apply defaults for missing profiles/plots (idempotent).
+Re-apply default plots/profiles.
 
 ```yaml
 service: microgreens.seed_defaults
@@ -206,49 +257,88 @@ service: microgreens.seed_defaults
 
 ---
 
-## Calendar behavior
+## Calendar Behavior
 
-* One **all-day event** per occupied plot from `start_date` (inclusive) to `harvest_date + 1 day` (exclusive end).
+* One **all-day event** per occupied plot.
+  Start = deployment date, End = `harvest_date + 1`.
 * Summary: `<title_prefix> <Plant Name> @ <Plot ID>`
 * Description contains sticker, plant id, cover/harvest dates, notes.
-* **Clear** removes the event. If the calendar entity doesn’t exist or the calendar integration doesn’t provide `create_event`/`delete_event`, the integration logs a warning and skips calendar operations.
+* **Clear** removes the event.
+* If the calendar doesn’t support `create_event`/`delete_event`, integration logs a warning and skips.
 
 ---
 
-## Storage
+## Cards Usage
 
-* Stored in HA storage (`.storage/microgreens_store`).
-* Keys: `plots`, `profiles`, `deployments`.
-* Storage schema versioned; integration upgrades handle forward compatibility.
+### 1) Full dashboard
+
+```yaml
+type: custom:microgreens-card
+```
+
+### 2) Single plot
+
+```yaml
+type: custom:microgreens-plot-card
+plot_id: A1
+title: Plot-3
+compact: true
+```
+
+**How they work:**
+
+* Read `sensor.microgreens_meta` for plots/profiles.
+* Read `sensor.microgreens_plot_<ID>` for per-plot state.
+* Call integration services (`deploy`, `unassign`, etc.).
+* Integration remains the single source of truth.
 
 ---
 
 ## Troubleshooting
 
-* **Gear (Options) shows a 500 / options flow fails**
+* **“Custom element doesn’t exist” / “Card type not found”**
 
-  * Make sure `config_flow.py` exists and `manifest.json` has `"config_flow": true`.
-  * Restart **Home Assistant Core** after updating the integration.
-* **Card says “Card type not found” / UI missing**
+  * Restart HA, clear frontend cache.
+  * On old HA versions: add resources manually under **Settings → Dashboards → Resources**:
 
-  * Install the Lovelace plugin: [https://github.com/3dg1luk43/lovelace-microgreens-card](https://github.com/3dg1luk43/lovelace-microgreens-card) and clear frontend cache
+    * `/local/microgreens/microgreens-card.js`
+    * `/local/microgreens/microgreens-plot-card.js`
+
+* **Buttons do nothing**
+
+  * Check integration is installed and services exist.
+  * See **Settings → System → Logs**.
+
+* **Unknown / Entity not found**
+
+  * Integration didn’t create sensors. Ensure one config entry exists. Restart HA.
+
 * **No calendar events**
 
-  * Ensure the calendar entity in Options exists and supports `calendar.create_event`. Check **Settings → System → Logs** for warnings.
+  * Verify calendar entity supports `create_event`/`delete_event`.
+
 * **No notifications**
 
-  * Verify the selected notify service exists and is spelled `notify.<name>`.
-* **Plot sensor shows “idle” but UI claims occupied**
+  * Ensure `notify.<service>` exists.
 
-  * Force a state refresh by toggling any option or reloading the page. Sensors recalc at local midnight and on writes.
-* **Mobile app shows “Configuration error”**
+* **Edits in modals revert while typing**
 
-  * Clear HA app cache, then reopen.
+  * Latest version fixes race conditions; update if needed.
+
+---
+
+## Development
+
+* **Backend**: async Python, storage in `.storage/microgreens_store` (keys: `plots`, `profiles`, `deployments`).
+* **Frontend**: plain JS web components, no build step.
+* For local testing, serve cards from `/local/` with `?v=timestamp` to bust cache:
+
+  * `/local/microgreens-card.js?v=1234`
 
 ---
 
 ## Contributing / Issues
 
-* File issues: [https://github.com/3dg1luk43/ha-microgreens/issues](https://github.com/3dg1luk43/ha-microgreens/issues)
-* PRs welcome. Keep code async-safe, avoid blocking I/O, and follow HA selectors for options.
+* Issues / feature requests: [https://github.com/3dg1luk43/ha-microgreens/issues](https://github.com/3dg1luk43/ha-microgreens/issues)
+* PRs welcome. Follow HA coding standards, async safety, and selectors.
 * License: MIT
