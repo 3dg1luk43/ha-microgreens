@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.const import Platform
 from homeassistant.helpers import storage, dispatcher, event as ha_event
+from homeassistant.components.http import StaticPathConfig
 
 from .const import (
     DOMAIN, STORAGE_KEY, STORAGE_VERSION,
@@ -339,17 +340,26 @@ class Runtime:
 
 # --------------------------- HA entry points ---------------------------
 
-def _register_static_frontend(hass: HomeAssistant) -> str:
+async def _register_static_frontend(hass: HomeAssistant) -> str:
     """Expose package 'frontend/' under a static URL and return the base url."""
     pkg_dir = resources.files(__package__) / "frontend"
     path = str(pkg_dir)
-    # Register only once
-    for route in getattr(hass.http, "_static_paths", set()):
-        if getattr(route, "prefix", "") == _FRONTEND_URL_BASE:
-            break
+
+    # Guard to avoid duplicate registration across reloads
+    flag = f"{DOMAIN}_static_registered"
+    if hass.data.get(flag):
+        return _FRONTEND_URL_BASE
+
+    if hasattr(hass.http, "async_register_static_paths"):
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(_FRONTEND_URL_BASE, path, True)
+        ])
     else:
+        # Legacy fallback for old HA versions
         hass.http.register_static_path(_FRONTEND_URL_BASE, path, cache_headers=True)
-        _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
+
+    hass.data[flag] = True
+    _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
     return _FRONTEND_URL_BASE
 
 def _inject_resources(hass: HomeAssistant, base_url: str) -> None:
@@ -381,7 +391,7 @@ def _copy_frontend_to_www(hass: HomeAssistant) -> None:
     )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    base = _register_static_frontend(hass)
+    base = await _register_static_frontend(hass)
     _inject_resources(hass, base)
     rt = Runtime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rt
@@ -456,8 +466,8 @@ def _register_services(self: Runtime):
         )
 
     async def _svc_reinstall_frontend(call):
-        base = _register_static_frontend(hass)
-        _inject_resources(hass, base)
+        base = await _register_static_frontend(hass)
+    _inject_resources(hass, base)
 
     async def harvest(call: ServiceCall):
         _LOGGER.debug("Service harvest: %s", call.data)
