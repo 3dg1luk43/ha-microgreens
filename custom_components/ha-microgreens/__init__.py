@@ -22,7 +22,7 @@ from .const import (
     SIGNAL_DATA_UPDATED, SIGNAL_NEW_PLOT,
     SIGNAL_REMOVE_PLOT,
     DEFAULT_CALENDAR, DEFAULT_NOTIFY, DEFAULT_TITLE_PREFIX,
-    DEFAULT_WATERING_TIME, DEFAULT_SUMMARY_TIME,
+    DEFAULT_WATERING_TIME, DEFAULT_SUMMARY_TIME, KEY_FRONTEND_BASE
 )
 
 
@@ -359,6 +359,7 @@ async def _register_static_frontend(hass: HomeAssistant) -> str:
         hass.http.register_static_path(_FRONTEND_URL_BASE, path, cache_headers=True)
 
     hass.data[flag] = True
+    hass.data[KEY_FRONTEND_BASE] = _FRONTEND_URL_BASE
     _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
     return _FRONTEND_URL_BASE
 
@@ -392,6 +393,7 @@ def _copy_frontend_to_www(hass: HomeAssistant) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     base = await _register_static_frontend(hass)
+    hass.data[KEY_FRONTEND_BASE] = base
     _inject_resources(hass, base)
     rt = Runtime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rt
@@ -440,7 +442,9 @@ def _rt(hass: HomeAssistant) -> Runtime:
     return hass.data[DOMAIN][entry_id]
 
 def _register_services(self: Runtime):
-    hass = self.hass
+    hass = self.hass if hasattr(self, "_hass") else self.hass  # whatever you already use
+    base = hass.data.get(KEY_FRONTEND_BASE, _FRONTEND_URL_BASE)
+    _inject_resources(hass, base)
 
     async def profile_upsert(call: ServiceCall):
         _LOGGER.debug("Service profile_upsert: %s", call.data)
@@ -467,7 +471,8 @@ def _register_services(self: Runtime):
 
     async def _svc_reinstall_frontend(call):
         base = await _register_static_frontend(hass)
-    _inject_resources(hass, base)
+        hass.data[KEY_FRONTEND_BASE] = base
+        _inject_resources(hass, base)
 
     async def harvest(call: ServiceCall):
         _LOGGER.debug("Service harvest: %s", call.data)
