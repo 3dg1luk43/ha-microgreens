@@ -364,32 +364,6 @@ async def _register_static_frontend(hass: HomeAssistant) -> str:
     _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
     return _FRONTEND_URL_BASE
 
-def _inject_resources(hass: HomeAssistant, static_base_url: str) -> None:
-    """
-    Ensure Lovelace loads our modules.
-    Strategy:
-      1) Copy to /local/ha-microgreens/* (cache-busts on restart due to file mtime).
-      2) Ask frontend to load the /local/ URLs (works with storage-mode dashboards).
-    """
-    try:
-        # 1) Always ensure /local/* is present (usable by both Storage & YAML modes)
-        local_base = _copy_frontend_to_www(hass)
-
-        # 2) Prefer add_extra_module_url (supported in current HA cores)
-        from homeassistant.components.frontend import add_extra_module_url
-        for name in _FRONTEND_FILES:
-            url = f"{local_base}/{name}"
-            add_extra_module_url(hass, url)
-            _LOGGER.debug("Microgreens: added Lovelace module (extra_url): %s", url)
-
-    except Exception as exc:
-        _LOGGER.warning(
-            "Microgreens: could not auto-inject resources (%s). "
-            "Add Lovelace Resources manually pointing to /local/%s/*.js",
-            exc, _WWW_SUBDIR
-        )
-
-
 def _copy_frontend_to_www(hass: HomeAssistant) -> str:
     """Copy JS modules to /config/www/ha-microgreens/ and return the /local base URL."""
     import shutil
@@ -402,6 +376,27 @@ def _copy_frontend_to_www(hass: HomeAssistant) -> str:
     base_url = f"/local/{_WWW_SUBDIR}"
     _LOGGER.info("Microgreens: frontend copied to %s/ (%s)", base_url, target)
     return base_url
+
+def _inject_resources(hass: HomeAssistant, _static_base_url: str) -> None:
+    """
+    Ensure Lovelace loads our modules.
+
+    Storage-mode dashboards will not show these as Resources rows; we use
+    frontend.add_extra_module_url to load them at runtime.
+    """
+    try:
+        local_base = _copy_frontend_to_www(hass)
+        from homeassistant.components.frontend import add_extra_module_url
+        for name in _FRONTEND_FILES:
+            url = f"{local_base}/{name}"
+            add_extra_module_url(hass, url)
+            _LOGGER.debug("Microgreens: added Lovelace module (extra_url): %s", url)
+    except Exception as exc:
+        _LOGGER.warning(
+            "Microgreens: could not auto-inject resources (%s). "
+            "If needed, add Lovelace Resources manually to /local/%s/*.js",
+            exc, _WWW_SUBDIR
+        )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
