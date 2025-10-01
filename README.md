@@ -69,17 +69,6 @@ This repository combines both the backend integration and the frontend cards:
 
 ## Installation
 
-### Lovelace mode requirement
-This integration is designed for **Lovelace Storage mode** (the default UI-managed dashboards).  
-If you’re on YAML mode, switch in `configuration.yaml`:
-
-```yaml
-lovelace:
-  mode: storage
-````
-
-Restart Home Assistant after changing this.
-
 ### HACS (Custom Repository)
 
 1. In HACS → Integrations → **Custom repositories**
@@ -90,26 +79,32 @@ Restart Home Assistant after changing this.
 3. Go to **Settings → Devices & services → “+ Add Integration” → Microgreens**
    Configure options (calendar, notify service, times).
 
-### What happens on restart/reload
+### Lovelace card
 
-* The integration **copies** the two frontend files to `/config/www/ha-microgreens/`:
+* The integration **copies** the two frontend files to `/config/www/ha-microgreens` and auto-registers in dashboard resources:
 
   * `/config/www/ha-microgreens/microgreens-card.js`
   * `/config/www/ha-microgreens/microgreens-plot-card.js`
 
   They are served as `/local/ha-microgreens/*.js`.
 
-* For **Storage dashboards**, the integration auto-loads these modules using the supported `frontend.add_extra_module_url` mechanism.
-  ✅ No manual resource entries required.
+If that does not happend, please add it into yout configuration.yaml.
 
-* For **YAML dashboards** (if you insist on YAML mode), you must add resources manually:
+```yaml
+  lovelace:
+    resources:
+      - url: /local/ha-microgreens/microgreens-card.js
+        type: module
+      - url: /local/ha-microgreens/microgreens-plot-card.js
+        type: module
+  ```
 
-  ```
-  /local/ha-microgreens/microgreens-card.js          (type: module)
-  /local/ha-microgreens/microgreens-plot-card.js     (type: module)
-  ```
+Restart Home Assistant after changing this.
+
 
 ### Using the cards
+
+Cards should be available in card picker, if not, try hard refreshing the dashboard to clear cached javascript. Following is the configuration for manual YAML card.
 
 **Full dashboard**
 
@@ -122,7 +117,16 @@ type: custom:microgreens-card
 ```yaml
 type: custom:microgreens-plot-card
 plot_id: A1
+title: Plot-3
+compact: true
 ```
+
+**How they work:**
+
+* Read `sensor.microgreens_meta` for plots/profiles.
+* Read `sensor.microgreens_plot_<ID>` for per-plot state.
+* Call integration services (`deploy`, `unassign`, etc.).
+* Integration remains the single source of truth.
 
 ### Forcing a reinstall of frontend
 
@@ -307,32 +311,6 @@ service: microgreens.seed_defaults
 * Description contains sticker, plant id, cover/harvest dates, notes.
 * **Clear** removes the event.
 * If the calendar doesn’t support `create_event`/`delete_event`, integration logs a warning and skips.
-
----
-
-## Cards Usage
-
-### 1) Full dashboard
-
-```yaml
-type: custom:microgreens-card
-```
-
-### 2) Single plot
-
-```yaml
-type: custom:microgreens-plot-card
-plot_id: A1
-title: Plot-3
-compact: true
-```
-
-**How they work:**
-
-* Read `sensor.microgreens_meta` for plots/profiles.
-* Read `sensor.microgreens_plot_<ID>` for per-plot state.
-* Call integration services (`deploy`, `unassign`, etc.).
-* Integration remains the single source of truth.
 
 ---
 
