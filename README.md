@@ -1,3 +1,4 @@
+
 # Microgreens – Home Assistant Integration + Lovelace Cards
 
 **Grow-cycle orchestration for microgreens inside Home Assistant, with a full Lovelace UI.**
@@ -62,35 +63,76 @@ This repository combines both the backend integration and the frontend cards:
 
 * Home Assistant 2024.6+ (tested).
 * Optional: Calendar integration with `calendar.create_event` / `calendar.delete_event`.
-* No separate card installation needed: cards ship with the integration and auto-load.
+* **Storage-mode dashboards required** (see below).
 
 ---
 
-## Installation (HACS – Custom Repository)
+## Installation
 
-1. **HACS → Integrations →** **Custom repositories**
+### Lovelace mode requirement
+This integration is designed for **Lovelace Storage mode** (the default UI-managed dashboards).  
+If you’re on YAML mode, switch in `configuration.yaml`:
+
+```yaml
+lovelace:
+  mode: storage
+````
+
+Restart Home Assistant after changing this.
+
+### HACS (Custom Repository)
+
+1. In HACS → Integrations → **Custom repositories**
 
    * URL: `https://github.com/3dg1luk43/ha-microgreens`
    * Category: **Integration**
 2. Install **Microgreens**, then **Restart Home Assistant**.
-3. **Settings → Devices & services → “+ Add Integration” → Microgreens**
+3. Go to **Settings → Devices & services → “+ Add Integration” → Microgreens**
    Configure options (calendar, notify service, times).
-4. The Lovelace cards are installed automatically.
-   Add them to your dashboards:
 
-   ```yaml
-   type: custom:microgreens-card
-   ```
+### What happens on restart/reload
 
-   or
+* The integration **copies** the two frontend files to `/config/www/ha-microgreens/`:
 
-   ```yaml
-   type: custom:microgreens-plot-card
-   plot_id: A1
-   ```
+  * `/config/www/ha-microgreens/microgreens-card.js`
+  * `/config/www/ha-microgreens/microgreens-plot-card.js`
 
-No manual resource configuration is required on current HA versions.
-On older HA cores without `add_extra_module_url`, the integration falls back to copying to `/local/microgreens/`.
+  They are served as `/local/ha-microgreens/*.js`.
+
+* For **Storage dashboards**, the integration auto-loads these modules using the supported `frontend.add_extra_module_url` mechanism.
+  ✅ No manual resource entries required.
+
+* For **YAML dashboards** (if you insist on YAML mode), you must add resources manually:
+
+  ```
+  /local/ha-microgreens/microgreens-card.js          (type: module)
+  /local/ha-microgreens/microgreens-plot-card.js     (type: module)
+  ```
+
+### Using the cards
+
+**Full dashboard**
+
+```yaml
+type: custom:microgreens-card
+```
+
+**Single plot**
+
+```yaml
+type: custom:microgreens-plot-card
+plot_id: A1
+```
+
+### Forcing a reinstall of frontend
+
+Developer Tools → Services → call:
+
+```
+service: microgreens.reinstall_frontend
+```
+
+This re-copies card files into `/local/ha-microgreens/` and re-injects them.
 
 ---
 
@@ -298,15 +340,13 @@ compact: true
 
 * **“Custom element doesn’t exist” / “Card type not found”**
 
-  * Restart HA, clear frontend cache.
-  * On old HA versions: add resources manually under **Settings → Dashboards → Resources**:
-
-    * `/local/microgreens/microgreens-card.js`
-    * `/local/microgreens/microgreens-plot-card.js`
+  * Restart HA, hard-refresh your browser.
+  * Verify `/config/www/ha-microgreens/*.js` exist.
+  * If using YAML dashboards, make sure you added `/local/ha-microgreens/*.js` as resources.
 
 * **Buttons do nothing**
 
-  * Check integration is installed and services exist.
+  * Ensure the integration is installed and services exist.
   * See **Settings → System → Logs**.
 
 * **Unknown / Entity not found**
@@ -321,19 +361,17 @@ compact: true
 
   * Ensure `notify.<service>` exists.
 
-* **Edits in modals revert while typing**
-
-  * Latest version fixes race conditions; update if needed.
-
 ---
 
 ## Development
 
-* **Backend**: async Python, storage in `.storage/microgreens_store` (keys: `plots`, `profiles`, `deployments`).
+* **Backend**: async Python, storage in `.storage/microgreens_store`.
 * **Frontend**: plain JS web components, no build step.
-* For local testing, serve cards from `/local/` with `?v=timestamp` to bust cache:
+* For local testing, serve cards from `/local/ha-microgreens/` with `?v=timestamp` to bust cache:
 
-  * `/local/microgreens-card.js?v=1234`
+  ```
+  /local/ha-microgreens/microgreens-card.js?v=1234
+  ```
 
 ---
 
