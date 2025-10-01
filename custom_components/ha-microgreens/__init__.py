@@ -17,6 +17,8 @@ from homeassistant.const import Platform
 from homeassistant.helpers import storage, dispatcher, event as ha_event
 from homeassistant.components.http import StaticPathConfig
 
+from .frontend import MicrogreensCardRegistration
+
 from .const import (
     DOMAIN, STORAGE_KEY, STORAGE_VERSION,
     SIGNAL_DATA_UPDATED, SIGNAL_NEW_PLOT,
@@ -405,6 +407,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _inject_resources(hass, base)
     rt = Runtime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rt
+    card_reg = MicrogreensCardRegistration(hass)
+    await card_reg.async_register()
     await rt.async_start()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -414,6 +418,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     rt: Runtime = hass.data[DOMAIN][entry.entry_id]
     await rt.async_stop()
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not hass.data.get(DOMAIN):
+        card_reg = MicrogreensCardRegistration(hass)
+        await card_reg.async_unregister()
     if ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return ok
