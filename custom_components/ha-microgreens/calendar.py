@@ -66,4 +66,6 @@ class MicrogreensCalendar(CalendarEntity):
         self.async_on_remove(self._unsub)
 
     def _update(self):
-        self.async_write_ha_state()
+        # Use thread-safe scheduling to update state from signal callbacks
+        # to avoid calling async_write_ha_state from non-loop threads.
+        self.schedule_update_ha_state()

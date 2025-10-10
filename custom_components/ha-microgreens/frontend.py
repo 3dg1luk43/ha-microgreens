@@ -36,23 +36,28 @@ class MicrogreensCardRegistration:
         # /config/www/ha-microgreens/<name>
         return Path(self.hass.config.path("www")) / LOCAL_SUBDIR / name
 
+    def _copy_if_needed(self, src: Path, dst: Path) -> None:
+        """Synchronous helper: mkdir, compare mtimes, and copy if newer/missing."""
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            need_copy = (not dst.exists()) or (
+                src.stat().st_mtime_ns > dst.stat().st_mtime_ns
+            )
+            if need_copy:
+                shutil.copy2(src, dst)
+                _LOGGER.info("Microgreens: deployed card to %s", dst)
+            else:
+                _LOGGER.debug("Microgreens: card up-to-date at %s", dst)
+        except Exception as exc:
+            _LOGGER.warning("Microgreens: failed to deploy %s to %s: %s", src.name, dst, exc)
+
     async def _deploy_cards(self) -> None:
         """Copy cards if missing or outdated (mtime-based)."""
         for name in CARDS:
             src = self._src_path(name)
             dst = self._dst_path(name)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                need_copy = (not dst.exists()) or (
-                    src.stat().st_mtime_ns > dst.stat().st_mtime_ns
-                )
-                if need_copy:
-                    shutil.copy2(src, dst)
-                    _LOGGER.info("Microgreens: deployed card to %s", dst)
-                else:
-                    _LOGGER.debug("Microgreens: card up-to-date at %s", dst)
-            except Exception as exc:
-                _LOGGER.warning("Microgreens: failed to deploy %s to %s: %s", name, dst, exc)
+            # Run blocking I/O in executor to avoid blocking the event loop
+            await self.hass.async_add_executor_job(self._copy_if_needed, src, dst)
 
     async def async_register(self) -> None:
         """Deploy cards and ensure Lovelace resources exist (storage mode only)."""

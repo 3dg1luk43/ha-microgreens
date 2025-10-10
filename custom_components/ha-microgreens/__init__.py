@@ -32,8 +32,6 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]  # <-- add CALE
 
 _LOGGER = logging.getLogger(__name__)
 _FRONTEND_URL_BASE = "/microgreens-frontend"  # static mount of packaged assets
-_FRONTEND_FILES = ("microgreens-card.js", "microgreens-plot-card.js")
-_WWW_SUBDIR = "ha-microgreens"               # -> served as /local/ha-microgreens/
 
 
 
@@ -366,45 +364,10 @@ async def _register_static_frontend(hass: HomeAssistant) -> str:
     _LOGGER.debug("Microgreens: registered static path %s -> %s", _FRONTEND_URL_BASE, path)
     return _FRONTEND_URL_BASE
 
-def _copy_frontend_to_www(hass: HomeAssistant) -> str:
-    """Copy JS modules to /config/www/ha-microgreens/ and return the /local base URL."""
-    import shutil
-    target = hass.config.path("www", _WWW_SUBDIR)
-    os.makedirs(target, exist_ok=True)
-    src_dir = resources.files(__package__) / "frontend"
-    for name in _FRONTEND_FILES:
-        with resources.as_file(src_dir / name) as src:
-            shutil.copy2(str(src), os.path.join(target, name))
-    base_url = f"/local/{_WWW_SUBDIR}"
-    _LOGGER.info("Microgreens: frontend copied to %s/ (%s)", base_url, target)
-    return base_url
-
-def _inject_resources(hass: HomeAssistant, _static_base_url: str) -> None:
-    """
-    Ensure Lovelace loads our modules.
-
-    Storage-mode dashboards will not show these as Resources rows; we use
-    frontend.add_extra_module_url to load them at runtime.
-    """
-    try:
-        local_base = _copy_frontend_to_www(hass)
-        from homeassistant.components.frontend import add_extra_module_url
-        for name in _FRONTEND_FILES:
-            url = f"{local_base}/{name}"
-            add_extra_module_url(hass, url)
-            _LOGGER.debug("Microgreens: added Lovelace module (extra_url): %s", url)
-    except Exception as exc:
-        _LOGGER.warning(
-            "Microgreens: could not auto-inject resources (%s). "
-            "If needed, add Lovelace Resources manually to /local/%s/*.js",
-            exc, _WWW_SUBDIR
-        )
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     base = await _register_static_frontend(hass)
     hass.data[KEY_FRONTEND_BASE] = base
-    _inject_resources(hass, base)
     rt = Runtime(hass, entry)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = rt
     card_reg = MicrogreensCardRegistration(hass)
@@ -458,8 +421,6 @@ def _rt(hass: HomeAssistant) -> Runtime:
 
 def _register_services(self: Runtime):
     hass = self.hass if hasattr(self, "_hass") else self.hass  # whatever you already use
-    base = hass.data.get(KEY_FRONTEND_BASE, _FRONTEND_URL_BASE)
-    _inject_resources(hass, base)
 
     async def profile_upsert(call: ServiceCall):
         _LOGGER.debug("Service profile_upsert: %s", call.data)
@@ -485,9 +446,11 @@ def _register_services(self: Runtime):
         )
 
     async def _svc_reinstall_frontend(call):
+        # Re-deploy cards and re-register Lovelace resources
         base = await _register_static_frontend(hass)
         hass.data[KEY_FRONTEND_BASE] = base
-        _inject_resources(hass, base)
+        card_reg = MicrogreensCardRegistration(hass)
+        await card_reg.async_register()
 
     async def harvest(call: ServiceCall):
         _LOGGER.debug("Service harvest: %s", call.data)

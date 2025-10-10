@@ -62,8 +62,9 @@ This repository combines both the backend integration and the frontend cards:
 ## Requirements
 
 * Home Assistant 2024.6+ (tested).
-* Optional: Calendar integration with `calendar.create_event` / `calendar.delete_event`.
-* **Storage-mode dashboards required** (see below).
+* Lovelace dashboards in either mode:
+  * Storage mode: resources are auto-registered by the integration.
+  * YAML mode: add `/local/ha-microgreens/*.js` resources manually (see below).
 
 ---
 
@@ -81,22 +82,22 @@ This repository combines both the backend integration and the frontend cards:
 
 ### Lovelace card
 
-* The integration **copies** the two frontend files to `/config/www/ha-microgreens` and auto-registers in dashboard resources:
+* The integration deploys the frontend files to `/config/www/ha-microgreens` and, when Lovelace is in storage mode, auto-registers them as dashboard resources:
 
   * `/config/www/ha-microgreens/microgreens-card.js`
   * `/config/www/ha-microgreens/microgreens-plot-card.js`
 
-  They are served as `/local/ha-microgreens/*.js`.
+  They are served at `/local/ha-microgreens/*.js`.
 
-If that does not happend, please add it into yout configuration.yaml.
+If you are using YAML-mode dashboards (or the resources didn’t appear), add them to your configuration manually:
 
 ```yaml
-  lovelace:
-    resources:
-      - url: /local/ha-microgreens/microgreens-card.js
-        type: module
-      - url: /local/ha-microgreens/microgreens-plot-card.js
-        type: module
+lovelace:
+  resources:
+    - url: /local/ha-microgreens/microgreens-card.js
+      type: module
+    - url: /local/ha-microgreens/microgreens-plot-card.js
+      type: module
   ```
 
 Restart Home Assistant after changing this.
@@ -128,15 +129,14 @@ compact: true
 * Call integration services (`deploy`, `unassign`, etc.).
 * Integration remains the single source of truth.
 
-### Forcing a reinstall of frontend
+### Reinstalling the frontend
 
 Developer Tools → Services → call:
 
 ```
 service: microgreens.reinstall_frontend
 ```
-
-This re-copies card files into `/local/ha-microgreens/` and re-injects them.
+This re-copies card files into `/config/www/ha-microgreens/` and (in storage mode) ensures Lovelace resources exist.
 
 ---
 
@@ -305,12 +305,32 @@ service: microgreens.seed_defaults
 
 ## Calendar Behavior
 
-* One **all-day event** per occupied plot.
-  Start = deployment date, End = `harvest_date + 1`.
-* Summary: `<title_prefix> <Plant Name> @ <Plot ID>`
-* Description contains sticker, plant id, cover/harvest dates, notes.
-* **Clear** removes the event.
-* If the calendar doesn’t support `create_event`/`delete_event`, integration logs a warning and skips.
+* Exposes a read-only calendar entity (`calendar.microgreens`).
+* Shows one **all-day event** per occupied plot:
+  * Start = deployment date, End = `harvest_date + 1`.
+  * Summary: `<title_prefix> <Plant Name> @ <Plot ID>`
+  * Description includes sticker, plant id, cover/harvest dates, notes.
+* Clearing/harvesting a plot removes its calendar event automatically.
+
+No external calendar services are called; events come from the integration’s calendar entity.
+
+---
+
+## Screenshots
+
+Below are example screenshots of the dashboard and editors.
+
+![Single-card dashboard](/img/single-card-dash.png)
+Single-card dashboard showing the full microgreens overview card.
+
+![Single plot card](/img/single_plot_card.png)
+Compact single-plot card with state, plant, and dates.
+
+![Profile editor](/img/profile-editor.png)
+Profiles editor for cover/uncover durations, watering frequency, and notes.
+
+![Plot editor](/img/plot-editor.png)
+Plots manager for creating and editing new Plots
 
 ---
 
