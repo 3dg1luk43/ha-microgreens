@@ -321,15 +321,19 @@ No external calendar services are called; events come from the integration’s c
 Below are example screenshots of the dashboard and editors.
 
 ![Single-card dashboard](/img/single-card-dash.png)
+
 Single-card dashboard showing the full microgreens overview card.
 
 ![Single plot card](/img/single_plot_card.png)
+
 Compact single-plot card with state, plant, and dates.
 
 ![Profile editor](/img/profile-editor.png)
+
 Profiles editor for cover/uncover durations, watering frequency, and notes.
 
 ![Plot editor](/img/plot-editor.png)
+
 Plots manager for creating and editing new Plots
 
 ---
