@@ -5,9 +5,6 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Iterable
-
-from homeassistant.components.lovelace import LovelaceData
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +20,7 @@ def _local_url(name: str) -> str:
 
 
 class MicrogreensCardRegistration:
-    """Deploy cards into /config/www and register Lovelace resources in storage mode."""
+    """Deploy cards into /config/www without touching Lovelace resources."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
@@ -60,46 +57,14 @@ class MicrogreensCardRegistration:
             await self.hass.async_add_executor_job(self._copy_if_needed, src, dst)
 
     async def async_register(self) -> None:
-        """Deploy cards and ensure Lovelace resources exist (storage mode only)."""
+        """Deploy cards and log manual instructions for Lovelace resources."""
         await self._deploy_cards()
-
-        lovelace: LovelaceData | None = self.hass.data.get("lovelace")
-        if lovelace is None or lovelace.mode != "storage":
-            # YAML mode => user manages resources in configuration.yaml
-            _LOGGER.debug("Lovelace not in storage mode; skipping resource auto-register")
-            return
-
-        # create resources if missing
-        existing = lovelace.resources.async_items()
-        have_urls = {r.get("url") for r in existing}
-        needed: Iterable[str] = (_local_url(n) for n in CARDS)
-
-        for url in needed:
-            if url not in have_urls:
-                _LOGGER.info("Microgreens: registering Lovelace resource: %s", url)
-                await lovelace.resources.async_create_item(
-                    {"res_type": "module", "url": url}
-                )
-            else:
-                _LOGGER.debug("Microgreens: Lovelace resource already present: %s", url)
+        card_list = ", ".join(_local_url(name) for name in CARDS)
+        _LOGGER.info(
+            "Microgreens: cards deployed under /config/www; add Lovelace resources manually if needed: %s (type: module)",
+            card_list,
+        )
 
     async def async_unregister(self) -> None:
-        """Remove Lovelace resources (keep files in /config/www)."""
-        lovelace: LovelaceData | None = self.hass.data.get("lovelace")
-        if lovelace is None or lovelace.mode != "storage":
-            return
-
-        # delete both resources if present
-        to_delete = []
-        for r in lovelace.resources.async_items():
-            if r.get("url") in {_local_url(n) for n in CARDS}:
-                rid = r.get("id")
-                if rid:
-                    to_delete.append(rid)
-
-        for rid in to_delete:
-            try:
-                _LOGGER.info("Microgreens: removing Lovelace resource id=%s", rid)
-                await lovelace.resources.async_delete_item(rid)
-            except Exception as exc:
-                _LOGGER.warning("Microgreens: failed removing resource id=%s: %s", rid, exc)
+        """No-op; leave Lovelace resources untouched."""
+        return
