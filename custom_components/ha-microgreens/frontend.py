@@ -106,13 +106,19 @@ async def _migrate_local_resources(
 
     await resources.async_get_info()
 
-    url2 = f"{new_url}?v={ver}"
     migrated = 0
 
     for item in list(resources.async_items()):
         u = item.get("url", "")
         if not u.startswith(local_prefix):
             continue
+
+        suffix = u[len(local_prefix) :]
+        if not suffix:
+            continue
+
+        new_base = new_url.rstrip("/")
+        url2 = f"{new_base}/{suffix}?v={ver}"
 
         _LOGGER.info("Migrating Lovelace resource from %s to %s", u, url2)
         try:
@@ -183,6 +189,15 @@ class MicrogreensCardRegistration:
         except Exception:
             _LOGGER.debug("Local-to-integration resource migration failed for microgreens")
 
+        # Expand any base-only resource entries (e.g. "/ha-microgreens/?v=1")
+        try:
+            await _expand_base_resource(self.hass, f"/{LOCAL_SUBDIR}/", [
+                "microgreens-card.js",
+                "microgreens-plot-card.js",
+            ])
+        except Exception:
+            _LOGGER.debug("Failed to expand base resource entries for microgreens")
+
         _LOGGER.info(
             "Microgreens: cards served from integration at %s; add these as Lovelace resources if needed (type: module)",
             card_list_str,
@@ -190,3 +205,58 @@ class MicrogreensCardRegistration:
 
     async def async_unregister(self) -> None:
         return
+
+
+async def _expand_base_resource(hass: HomeAssistant, base: str, card_names: list[str]) -> int:
+    try:
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+    except Exception:
+        _LOGGER.debug("Lovelace helpers unavailable; skipping base resource expansion")
+        return 0
+
+    lovelace = hass.data.get("lovelace")
+    if not lovelace:
+        return 0
+
+    resources: ResourceStorageCollection = (
+        lovelace.resources if hasattr(lovelace, "resources") else lovelace["resources"]
+    )
+
+    await resources.async_get_info()
+
+    created = 0
+
+    targets = [f"{base.rstrip('/')}/{name}?v={_VERSION}" for name in card_names]
+
+    for item in list(resources.async_items()):
+        u = item.get("url", "")
+        if not (u == base or u.startswith(base)):
+            continue
+
+        suffix = u[len(base) :]
+        if suffix and not (suffix.startswith("?") or suffix == ""):
+            continue
+
+        _LOGGER.info("Expanding base resource %s into %s", u, ",".join(targets))
+
+        try:
+            first = targets[0]
+            if isinstance(resources, ResourceStorageCollection):
+                await resources.async_update_item(item["id"], {"res_type": "module", "url": first})
+            else:
+                item["url"] = first
+            created += 1
+
+            existing_urls = {it.get("url", "") for it in resources.async_items()}
+            for t in targets[1:]:
+                if t in existing_urls:
+                    continue
+                if isinstance(resources, ResourceStorageCollection):
+                    await resources.async_create_item({"res_type": "module", "url": t})
+                else:
+                    resources.async_items().append({"url": t})
+                created += 1
+        except Exception as exc:
+            _LOGGER.warning("Failed to expand base resource %s: %s", u, exc)
+
+    return created
