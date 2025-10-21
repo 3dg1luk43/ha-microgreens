@@ -9,62 +9,184 @@ from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
-LOCAL_SUBDIR = "ha-microgreens"  # -> /config/www/ha-microgreens
+LOCAL_SUBDIR = "ha-microgreens"
 CARDS: tuple[str, ...] = (
     "microgreens-card.js",
     "microgreens-plot-card.js",
 )
 
-def _local_url(name: str) -> str:
-    return f"/local/{LOCAL_SUBDIR}/{name}"
+_VERSION = "1"
+
+
+def _register_static_path(hass: HomeAssistant, url_path: str, path: str) -> None:
+    """Register a static path in a HA-version-compatible way.
+
+    We serve cards directly from the integration package `frontend/` folder instead
+    of copying them into `/config/www`.
+    """
+    try:
+        from homeassistant.components.http import StaticPathConfig
+
+        if hasattr(hass.http, "async_register_static_paths"):
+            hass.async_create_task(
+                hass.http.async_register_static_paths(
+                    [StaticPathConfig(url_path, path, True)]
+                )
+            )
+            return
+    except Exception:
+        pass
+
+    try:
+        hass.http.register_static_path(url_path, path, cache_headers=True)
+    except Exception:
+        _LOGGER.debug("Failed to register static path %s -> %s", url_path, path)
+
+
+async def _init_resource(hass: HomeAssistant, url: str, ver: str) -> bool:
+    try:
+        from homeassistant.components.frontend import add_extra_js_url
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+    except Exception:
+        _LOGGER.debug("Lovelace helpers unavailable; skipping resource init")
+        return False
+
+    lovelace = hass.data.get("lovelace")
+    if not lovelace:
+        _LOGGER.debug("Lovelace storage not available; skipping resource init")
+        return False
+
+    resources: ResourceStorageCollection = (
+        lovelace.resources if hasattr(lovelace, "resources") else lovelace["resources"]
+    )
+
+    await resources.async_get_info()
+
+    url2 = f"{url}?v={ver}"
+
+    for item in resources.async_items():
+        if not item.get("url", "").startswith(url):
+            continue
+        if item["url"].endswith(ver):
+            return False
+        _LOGGER.debug("Update lovelace resource to: %s", url2)
+        if isinstance(resources, ResourceStorageCollection):
+            await resources.async_update_item(item["id"], {"res_type": "module", "url": url2})
+        else:
+            item["url"] = url2
+        return True
+
+    if isinstance(resources, ResourceStorageCollection):
+        _LOGGER.debug("Add new lovelace resource: %s", url2)
+        await resources.async_create_item({"res_type": "module", "url": url2})
+    else:
+        _LOGGER.debug("Add extra JS module: %s", url2)
+        add_extra_js_url(hass, url2)
+
+    return True
+
+
+async def _migrate_local_resources(
+    hass: HomeAssistant, local_prefix: str, new_url: str, ver: str
+) -> int:
+    try:
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+    except Exception:
+        _LOGGER.debug("Lovelace helpers unavailable; skipping local -> integration migration")
+        return 0
+
+    lovelace = hass.data.get("lovelace")
+    if not lovelace:
+        _LOGGER.debug("Lovelace storage not available; skipping migration")
+        return 0
+
+    resources: ResourceStorageCollection = (
+        lovelace.resources if hasattr(lovelace, "resources") else lovelace["resources"]
+    )
+
+    await resources.async_get_info()
+
+    url2 = f"{new_url}?v={ver}"
+    migrated = 0
+
+    for item in list(resources.async_items()):
+        u = item.get("url", "")
+        if not u.startswith(local_prefix):
+            continue
+
+        _LOGGER.info("Migrating Lovelace resource from %s to %s", u, url2)
+        try:
+            if isinstance(resources, ResourceStorageCollection):
+                await resources.async_update_item(item["id"], {"res_type": "module", "url": url2})
+            else:
+                item["url"] = url2
+            migrated += 1
+        except Exception as exc:
+            _LOGGER.warning("Failed to migrate resource %s -> %s: %s", u, url2, exc)
+
+    return migrated
 
 
 class MicrogreensCardRegistration:
-    """Deploy cards into /config/www without touching Lovelace resources."""
+    """Serve microgreens cards from the integration package and log instructions."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
 
     def _src_path(self, name: str) -> Path:
-        # cards are bundled inside the integration package
         return Path(__file__).parent / "frontend" / name
 
-    def _dst_path(self, name: str) -> Path:
-        # /config/www/ha-microgreens/<name>
-        return Path(self.hass.config.path("www")) / LOCAL_SUBDIR / name
-
-    def _copy_if_needed(self, src: Path, dst: Path) -> None:
-        """Synchronous helper: mkdir, compare mtimes, and copy if newer/missing."""
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            need_copy = (not dst.exists()) or (
-                src.stat().st_mtime_ns > dst.stat().st_mtime_ns
-            )
-            if need_copy:
-                shutil.copy2(src, dst)
-                _LOGGER.info("Microgreens: deployed card to %s", dst)
-            else:
-                _LOGGER.debug("Microgreens: card up-to-date at %s", dst)
-        except Exception as exc:
-            _LOGGER.warning("Microgreens: failed to deploy %s to %s: %s", src.name, dst, exc)
-
-    async def _deploy_cards(self) -> None:
-        """Copy cards if missing or outdated (mtime-based)."""
+    async def async_register(self) -> None:
+        card_list = []
         for name in CARDS:
             src = self._src_path(name)
-            dst = self._dst_path(name)
-            # Run blocking I/O in executor to avoid blocking the event loop
-            await self.hass.async_add_executor_job(self._copy_if_needed, src, dst)
+            www_path = Path(__file__).parent / "www" / name
+            if www_path.exists():
+                serve_path = str(www_path)
+            else:
+                serve_path = str(src)
 
-    async def async_register(self) -> None:
-        """Deploy cards and log manual instructions for Lovelace resources."""
-        await self._deploy_cards()
-        card_list = ", ".join(_local_url(name) for name in CARDS)
+            url = f"/{LOCAL_SUBDIR}/{name}"
+            _register_static_path(self.hass, url, serve_path)
+            card_list.append(url)
+
+        card_list_str = ", ".join(card_list)
+
+        # Attempt delicate auto-registration of the lovelace resource for each card
+        for url in card_list:
+            try:
+                await _init_resource(self.hass, url, _VERSION)
+                _LOGGER.debug("Auto-registered lovelace resource for %s", url)
+            except Exception:
+                _LOGGER.debug("Auto-registration failed for %s", url)
+
+        # Remove old /config/www copies if present
+        try:
+            for name in CARDS:
+                dst = Path(self.hass.config.path("www")) / LOCAL_SUBDIR / name
+                if dst.exists():
+                    try:
+                        dst.unlink()
+                        _LOGGER.info("Removed old /config/www copy: %s", dst)
+                    except Exception as exc:
+                        _LOGGER.debug("Failed to remove old /config/www copy %s: %s", dst, exc)
+        except Exception:
+            _LOGGER.debug("Could not determine config www path to cleanup old microgreens cards")
+
+        # Migrate any lovelace resources that still point to /local/
+        try:
+            migrated = await _migrate_local_resources(
+                self.hass, f"/local/{LOCAL_SUBDIR}/", f"/{LOCAL_SUBDIR}/", _VERSION
+            )
+            if migrated:
+                _LOGGER.info("Migrated %d Microgreens Lovelace /local/ resources to integration-hosted URLs", migrated)
+        except Exception:
+            _LOGGER.debug("Local-to-integration resource migration failed for microgreens")
+
         _LOGGER.info(
-            "Microgreens: cards deployed under /config/www; add Lovelace resources manually if needed: %s (type: module)",
-            card_list,
+            "Microgreens: cards served from integration at %s; add these as Lovelace resources if needed (type: module)",
+            card_list_str,
         )
 
     async def async_unregister(self) -> None:
-        """No-op; leave Lovelace resources untouched."""
         return
