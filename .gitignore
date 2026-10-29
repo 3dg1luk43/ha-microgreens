@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+devtools/testbox/config/
+screenshots/
+node_modules/

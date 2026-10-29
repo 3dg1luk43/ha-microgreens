@@ -1,0 +1,33 @@
+# Test box config, copied to config/configuration.yaml by up.sh.
+homeassistant:
+  name: Microgreens Test Box
+  latitude: 50.0755
+  longitude: 14.4378
+  elevation: 200
+  unit_system: metric
+  country: CZ
+  time_zone: Europe/Prague
+
+frontend:
+http:
+api:
+websocket_api:
+config:          # config entries / flows over REST
+lovelace:
+mobile_app:      # the mobile_app_notification_action event
+repairs:
+todo:
+
+logger:
+  default: warning
+  logs:
+    custom_components.ha_microgreens: debug
+    custom_components.testbox_notify: info
+
+# notify.mobile_app_testbox gets the companion-app payload (tag, actions);
+# notify.plain_testbox shows that other targets do not.
+notify:
+  - platform: testbox_notify
+    name: mobile_app_testbox
+  - platform: testbox_notify
+    name: plain_testbox

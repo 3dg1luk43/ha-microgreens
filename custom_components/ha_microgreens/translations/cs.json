@@ -1,0 +1,359 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Microgreens",
+        "description": "Plánujte, pěstujte a sklízejte mikrozeleninu. Plodiny, pozice a výsevy spravujete v postranním panelu pod položkou Microgreens. Pokud byla dříve nainstalována verze Microgreens 0.1, její pozice, plodiny a výsevy se naimportují."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Microgreens je již nastaveno."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Oznámení",
+        "description": "Komu a kdy posílat denní úkoly. Stejná nastavení najdete na kartě Nastavení v panelu Microgreens.",
+        "data": {
+          "notify_targets": "Cíle oznámení",
+          "persistent_notification": "Zobrazit oznámení v Home Assistant",
+          "digest_enabled": "Ranní přehled",
+          "digest_time": "Čas přehledu",
+          "reminder_enabled": "Večerní připomínka",
+          "reminder_time": "Čas připomínky",
+          "notification_actions": "Tlačítka akcí v telefonu"
+        },
+        "data_description": {
+          "notify_targets": "Služby nebo entity notify, například notify.mobile_app_phone.",
+          "persistent_notification": "Přehled se zobrazí i v postranním panelu Home Assistant a zmizí, jakmile jsou všechny jeho úkoly hotové.",
+          "digest_enabled": "Jedna zpráva denně se vším, co je na řadě: sklizeň, odkrytí, zalévání, výsev, namáčení.",
+          "digest_time": "Kdy se přehled odešle.",
+          "reminder_enabled": "Druhá zpráva, jen pokud něco zůstává nehotové (sklizeň jen v její poslední den).",
+          "reminder_time": "Kdy se připomínka odešle.",
+          "notification_actions": "Oznámení v aplikaci Companion dostanou tlačítko „Vše zalito“ a po klepnutí otevřou panel."
+        }
+      }
+    }
+  },
+  "common": {
+    "digest_title": "Microgreens dnes",
+    "reminder_title": "Microgreens: zbývá udělat",
+    "test_title": "Microgreens",
+    "test_message": "Testovací oznámení z Microgreens.",
+    "line_harvest": "Sklidit: {items}",
+    "line_uncover": "Odkrýt: {items}",
+    "line_water": "Zalít: {items}",
+    "line_sow": "Vysít: {items}",
+    "line_soak": "Namočit semena: {items}",
+    "item": "{plot} ({crop})",
+    "tag_last_day": "{item}, poslední den",
+    "tag_late": "{item}, pozdě",
+    "action_water_all": "Vše zalito",
+    "action_open": "Otevřít",
+    "task_harvest": "Sklidit {plot} ({crop})",
+    "task_uncover": "Odkrýt {plot} ({crop})",
+    "task_water": "Zalít {plot} ({crop})",
+    "task_sow": "Vysít: {crop} ({plot})",
+    "task_soak": "Namočit semena: {crop} ({plot})",
+    "default_plot_name": "Pozice {id}",
+    "crop_arugula": "Rukola",
+    "crop_radish": "Ředkvička",
+    "crop_broccoli": "Brokolice",
+    "crop_mustard": "Hořčice",
+    "crop_pea": "Hrášek",
+    "crop_sunflower": "Slunečnice",
+    "crop_coriander": "Koriandr"
+  },
+  "entity": {
+    "binary_sensor": {
+      "watering_due": {
+        "name": "Zalévání na řadě"
+      },
+      "needs_water": {
+        "name": "Potřebuje vodu"
+      }
+    },
+    "button": {
+      "water_all": {
+        "name": "Zalít vše na řadě"
+      },
+      "water": {
+        "name": "Zalito"
+      }
+    },
+    "sensor": {
+      "tasks_today": {
+        "name": "Úkoly dnes",
+        "unit_of_measurement": "úkolů"
+      },
+      "ready_to_harvest": {
+        "name": "Ke sklizni",
+        "unit_of_measurement": "pozic"
+      },
+      "status": {
+        "name": "Stav",
+        "state": {
+          "empty": "Prázdná",
+          "planned": "Naplánováno",
+          "covered": "Zakryto",
+          "growing": "Roste",
+          "ready": "Ke sklizni",
+          "overdue": "Po termínu"
+        }
+      },
+      "harvest_date": {
+        "name": "Datum sklizně"
+      },
+      "progress": {
+        "name": "Průběh"
+      }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Úkoly"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Microgreens není načteno."
+    },
+    "invalid_name": {
+      "message": "{field} musí mít 1 až {max} znaků."
+    },
+    "text_too_long": {
+      "message": "Text je delší než {max} znaků."
+    },
+    "invalid_number": {
+      "message": "{field} musí být celé číslo od {min} do {max}."
+    },
+    "invalid_date": {
+      "message": "{field} zde není platné datum."
+    },
+    "invalid_color": {
+      "message": "Barva musí být ve tvaru #43a047."
+    },
+    "invalid_id": {
+      "message": "ID pozice smí obsahovat jen písmena, číslice, - a _ (nejvýše 32)."
+    },
+    "invalid_reason": {
+      "message": "Neznámý důvod."
+    },
+    "invalid_order": {
+      "message": "Nové pořadí musí obsahovat každou pozici právě jednou."
+    },
+    "invalid_backup": {
+      "message": "Toto není záloha Microgreens."
+    },
+    "too_many": {
+      "message": "Povoleno je nejvýše {max}."
+    },
+    "plot_exists": {
+      "message": "Pozice {plot} už existuje."
+    },
+    "plot_in_use": {
+      "message": "{plot} má ještě výsevy. Nejdřív je skliďte nebo vyhoďte."
+    },
+    "plot_busy": {
+      "message": "{plot}: obsazeno od {start} do {end} ({crop})."
+    },
+    "plot_empty": {
+      "message": "{plot}: nic tu neroste."
+    },
+    "no_plan": {
+      "message": "{plot}: žádný plánovaný výsev k potvrzení. Pro nový výsev zadejte plodinu."
+    },
+    "no_plot": {
+      "message": "Vyberte pozici."
+    },
+    "unknown_plot": {
+      "message": "Pozice {plot} neexistuje."
+    },
+    "unknown_crop": {
+      "message": "Plodina {crop} neexistuje."
+    },
+    "unknown_planting": {
+      "message": "Tento výsev už neexistuje."
+    },
+    "unknown_history": {
+      "message": "Tento záznam historie už neexistuje."
+    },
+    "unknown_task": {
+      "message": "Neznámý úkol."
+    },
+    "not_a_plot_device": {
+      "message": "Toto zařízení není pozice Microgreens."
+    },
+    "sown_in_future": {
+      "message": "Provedený výsev nemůže mít datum výsevu v budoucnosti."
+    },
+    "already_sown": {
+      "message": "Tento výsev už proběhl."
+    },
+    "not_sown": {
+      "message": "Tento výsev je jen naplánovaný; nejdřív ho potvrďte."
+    },
+    "shift_too_far": {
+      "message": "Fáze na světle nemůže být kratší než jeden den."
+    }
+  },
+  "issues": {
+    "legacy_entry": {
+      "title": "Odstraňte starou položku Microgreens 0.1",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Odstraňte starou položku Microgreens 0.1",
+            "description": "Microgreens teď běží jako ha_microgreens a naimportovalo pozice, plodiny a výsevy ze staré položky „microgreens“. Odesláním starou položku smažete. Pak odstraňte staré stažení Microgreens 0.1 (custom_components/microgreens) v HACS nebo ručně a restartujte."
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "discard_reason": {
+      "options": {
+        "mold": "Plíseň",
+        "poor_germination": "Slabé klíčení",
+        "pests": "Škůdci",
+        "dried_out": "Vyschlo",
+        "other": "Jiné"
+      }
+    }
+  },
+  "services": {
+    "sow": {
+      "name": "Vysít",
+      "description": "Vyseje plodinu na pozici (dnes nebo zpětně), naplánuje ji (pozdější datum), nebo bez plodiny potvrdí plánovaný výsev pozice.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice, například A1."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        },
+        "crop": {
+          "name": "Plodina",
+          "description": "ID nebo název plodiny. Nechte prázdné pro potvrzení plánovaného výsevu pozice."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Datum výsevu. Výchozí je dnešek; pozdější datum z něj udělá plán."
+        },
+        "label": {
+          "name": "Štítek",
+          "description": "Nálepka nebo kód várky. Výchozí je ID pozice a datum."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Volný text uložený u výsevu."
+        }
+      }
+    },
+    "water": {
+      "name": "Zalít",
+      "description": "Označí výsev na pozici jako dnes zalitý. Bez pozice všechny výsevy na řadě.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice. Nechte prázdné pro všechny výsevy na řadě."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        }
+      }
+    },
+    "uncover": {
+      "name": "Odkrýt",
+      "description": "Zaznamená, že výsev na pozici byl dnes odkryt.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        }
+      }
+    },
+    "harvest": {
+      "name": "Sklidit",
+      "description": "Sklidí výsev na pozici a zapíše ho do historie.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        },
+        "yield_grams": {
+          "name": "Výnos",
+          "description": "Sklizená hmotnost v gramech."
+        },
+        "rating": {
+          "name": "Hodnocení",
+          "description": "1 až 5."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Přidá se k poznámkám výsevu v historii."
+        }
+      }
+    },
+    "discard": {
+      "name": "Vyhodit",
+      "description": "Vyhodí nepovedený výsev (zapíše se do historie) nebo zruší plánovaný.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        },
+        "reason": {
+          "name": "Důvod",
+          "description": "Proč se nepovedl."
+        },
+        "notes": {
+          "name": "Poznámky",
+          "description": "Přidá se k poznámkám výsevu v historii."
+        }
+      }
+    },
+    "shift": {
+      "name": "Posunout",
+      "description": "Posune sklizeň probíhajícího výsevu o několik dní, nebo datum plánovaného výsevu.",
+      "fields": {
+        "plot": {
+          "name": "Pozice",
+          "description": "ID nebo název pozice."
+        },
+        "device_id": {
+          "name": "Zařízení pozice",
+          "description": "Zařízení pozice, místo pole Pozice."
+        },
+        "days": {
+          "name": "Dny",
+          "description": "Kladné číslo odloží, záporné uspíší."
+        }
+      }
+    },
+    "send_digest": {
+      "name": "Odeslat přehled",
+      "description": "Hned odešle dnešní přehled úkolů na všechny nastavené cíle."
+    },
+    "get_tasks": {
+      "name": "Získat úkoly",
+      "description": "Vrátí dnešní nehotové úkoly."
+    }
+  }
+}

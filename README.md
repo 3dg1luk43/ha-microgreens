@@ -1,384 +1,161 @@
+# Microgreens for Home Assistant
 
-# Microgreens – Home Assistant Integration + Lovelace Cards
+Plan, grow and harvest microgreen trays from Home Assistant. Keep track of which tray is in blackout, which needs water, and which is ready to cut, and get one short message a day telling you what to do.
 
-**Grow-cycle orchestration for microgreens inside Home Assistant, with a full Lovelace UI.**
-This repository combines both the backend integration and the frontend cards:
+![Board](img/panel-board.png)
 
-* **Integration** – entities, services, notifications, calendar integration.
-* **Cards** – `microgreens-card` (full dashboard) and `microgreens-plot-card` (single plot).
+## What you get
 
----
+- **A sidebar panel** with six tabs:
+  - **Board**: today's tasks and one tile per plot (stage bar, next step, one-tap actions).
+  - **Timeline**: every tray as a bar through blackout, light and its harvest window, past and planned. Click an empty spot to plan a sowing there.
+  - **Crops**: your varieties with their stage lengths, watering interval and yield statistics.
+  - **Plots**: the trays or shelf positions you grow in.
+  - **History**: harvests and failures, with yield, rating and per-crop averages.
+  - **Settings** (administrators): notifications and backup.
+- **A dashboard card** with a visual editor: board, today's tasks, timeline, or one plot.
+- **Notifications**: a morning digest, an evening reminder if something is still open, a "Watered all" button on the companion app, and an optional Home Assistant notification that clears itself.
+- **A to-do list** of today's tasks. Checking one off does it.
+- **Entities and services** for automations.
 
-## Features
+![Timeline](img/panel-timeline.png)
 
-### Integration
+## How a tray moves through its stages
 
-* **Plant profiles**
-  Define cover/uncover durations, watering cadence, and notes.
-* **Plots**
-  Arbitrary IDs (A1, A2, …), labels, add/remove/rename.
-* **Deployments**
-  Schedule a profile on a plot from a start date.
-* **Entities**
+| Stage | Meaning | Status |
+|---|---|---|
+| Soak | Seeds soaking before sowing (optional; you are reminded the day before) | Planned |
+| Blackout | Covered and dark until the shoots push up | Covered |
+| Light | Uncovered, greening | Growing |
+| Harvest window | Good to cut for a few days | Ready |
+| Late | Past the window, still on the plot | Overdue |
 
-  * `sensor.microgreens_meta` – current profiles + plots (UI reads this).
-  * `sensor.microgreens_plot_<ID>` – per-plot state (`idle`, `covered`, `uncovered`, `mature`) with attributes:
+A crop defines the lengths: blackout days, light days, harvest window days, water every N days and soak hours. Each tray keeps its own copy, so editing a crop never moves trays already growing. Uncovering is recorded when you do it; the harvest dates stay anchored to the sowing date. Use **+1 day / -1 day** on a tray when it needs longer or is early.
 
-    * `plot_id`, `sticker`, `plant_id`, `plant_name`
-    * `days_since_planting`, `cover_end`, `harvest_date`, `next_watering_due`
-* **Notifications**
-
-  * Daily summary at configurable time.
-  * Watering reminder at configurable time.
-* **Calendar (optional)**
-
-  * If configured, one all-day event per deployment (start → harvest).
-* **Services**
-
-  * `microgreens.profile_upsert`, `microgreens.profile_delete`
-  * `microgreens.plot_add`, `microgreens.plot_remove`, `microgreens.plot_rename`
-  * `microgreens.deploy`, `microgreens.unassign`
-  * Utilities: `microgreens.shift_schedule`, `microgreens.seed_defaults`
-
-### Cards
-
-* **`microgreens-card`** – full dashboard:
-
-  * Deploy modal (idle plot + profile + start date).
-  * Profiles modal (add/edit/delete with validation, ✓ flash on save).
-  * Plots modal (add/rename/delete, ✓ flash on save).
-  * Responsive grid of plot tiles showing state, plant, dates, with a **Clear** button (confirmation + ✓ animation).
-* **`microgreens-plot-card`** – compact card for a single plot:
-
-  * Displays state, plant, uncover/harvest dates.
-  * Properties:
-
-    * `plot_id` (required) – e.g. `A1`
-    * `title` (optional) – override title
-    * `compact` (optional, boolean)
-
----
-
-## Requirements
-
-* Home Assistant 2024.6+ (tested).
-* Lovelace dashboards in either mode:
-  * Storage mode: resources are auto-registered by the integration.
-  * YAML mode: add `/local/ha-microgreens/*.js` resources manually (see below).
-
----
+A sowing with a date in the future is a **plan**: it shows on the timeline, reminds you to soak and sow, and counts from the day you confirm it.
 
 ## Installation
 
-### HACS (Custom Repository)
+1. HACS > three dots > **Custom repositories** > `https://github.com/3dg1luk43/ha-microgreens`, category **Integration**.
+2. Install **Microgreens** and restart Home Assistant.
+3. **Settings > Devices & services > Add integration > Microgreens.**
+4. Open **Microgreens** in the sidebar.
 
-1. In HACS → Integrations → **Custom repositories**
+A fresh install starts with six plots (A1 to A6) and a few common crops. Requires Home Assistant 2026.2 or newer.
 
-   * URL: `https://github.com/3dg1luk43/ha-microgreens`
-   * Category: **Integration**
-2. Install **Microgreens**, then **Restart Home Assistant**.
-3. Go to **Settings → Devices & services → “+ Add Integration” → Microgreens**
-   Configure options (calendar, notify service, times).
+### Upgrading from 0.1.x
 
-### Lovelace card
+0.2.0 is a rebuild under a new domain, `ha_microgreens` (0.1.x was `microgreens`).
 
-* The integration deploys the frontend files to `/config/www/ha-microgreens` and, when Lovelace is in storage mode, auto-registers them as dashboard resources:
+1. Install 0.2.0 and add the integration as above. Your plots, crops and trays are imported from the old storage file, which is left untouched, and the old notify target and summary time carry over.
+2. A repair (**Settings > System > Repairs**) offers to delete the old entry. Then remove the old download (`custom_components/microgreens`) in HACS or by hand, and restart.
+3. Old dashboard cards keep working: `custom:microgreens-card` shows the board and `custom:microgreens-plot-card` one plot. The card now loads by itself; the old Lovelace resources are removed.
 
-  * `/config/www/ha-microgreens/microgreens-card.js`
-  * `/config/www/ha-microgreens/microgreens-plot-card.js`
+The calendar entity is gone; the timeline replaces it.
 
-  They are served at `/local/ha-microgreens/*.js`.
+## Notifications
 
-If you are using YAML-mode dashboards (or the resources didn’t appear), add them to your configuration manually:
+Settings tab (or **Configure** on the integration):
 
-```yaml
-lovelace:
-  resources:
-    - url: /local/ha-microgreens/microgreens-card.js
-      type: module
-    - url: /local/ha-microgreens/microgreens-plot-card.js
-      type: module
-  ```
+- **Send to**: any notify service or notify entity. Companion app targets (`notify.mobile_app_...`) also get the action buttons and open the panel when tapped.
+- **Morning digest** (default 08:00): everything due today, grouped: harvest, uncover, water, sow, soak. Nothing is sent on a day with no tasks.
+- **Evening reminder** (default 19:00): only if something is still open; a harvest only on its last day of the window or once late.
+- **Home Assistant notification**: the digest in the sidebar too, updated as you tick things off and dismissed when all is done.
+- **Phone action buttons**: "Watered all" waters every tray that is due.
 
-Restart Home Assistant after changing this.
+Watering is only ever marked done by you (panel, card, button, to-do list, service or the phone button), never by a notification being sent.
 
+## Dashboard card
 
-### Using the cards
-
-Cards should be available in card picker, if not, try hard refreshing the dashboard to clear cached javascript. Following is the configuration for manual YAML card.
-
-**Full dashboard**
+Add it from the card picker (search "Microgreens") and use the visual editor, or in YAML:
 
 ```yaml
-type: custom:microgreens-card
+type: custom:ha-microgreens-card
+view: board        # board | tasks | timeline | plot
+plots: [A1, A2]    # optional: only these plots
+plot_id: A1        # view: plot
+title: Kitchen shelf
+days: 14           # view: timeline
+show_tasks: true   # view: board
+compact: false     # view: board / plot
 ```
 
-**Single plot**
-
-```yaml
-type: custom:microgreens-plot-card
-plot_id: A1
-title: Plot-3
-compact: true
-```
-
-**How they work:**
-
-* Read `sensor.microgreens_meta` for plots/profiles.
-* Read `sensor.microgreens_plot_<ID>` for per-plot state.
-* Call integration services (`deploy`, `unassign`, etc.).
-* Integration remains the single source of truth.
-
-### Reinstalling the frontend
-
-Developer Tools → Services → call:
-
-```
-service: microgreens.reinstall_frontend
-```
-This re-copies card files into `/config/www/ha-microgreens/` and (in storage mode) ensures Lovelace resources exist.
-
----
-
-## Configuration (Options)
-
-* **Calendar entity** – optional, adds start→harvest events per plot.
-* **Notify service** – e.g. `notify.mobile_app_pixel_7`.
-* **Title prefix** – prepended to calendar event summaries.
-* **Watering time** – time of daily watering reminder.
-* **Daily summary time** – time of daily digest notification.
-
-**Tips**
-
-* If the notify dropdown is empty, type the service manually (`notify.mobile_app_*`).
-* Times accept `HH:MM` or `HH:MM:SS`.
-
----
-
-## Default data (first start)
-
-* **Plots**: `A1..A6` with labels “Plot A1”…“Plot A6”.
-* **Profiles**:
-
-  * Arugula – cover 3, uncover 8, water 1
-  * Coriander – cover 6, uncover 19, water 1
-  * Radish – cover 4, uncover 10, water 1
-  * Pea – cover 5, uncover 16, water 1
-  * Mustard – cover 3, uncover 11, water 1
-
----
+![Dashboard](img/dashboard.png)
 
 ## Entities
 
-### `sensor.microgreens_meta`
+Per plot (one device per plot):
 
-Example attributes:
+| Entity | Example | State |
+|---|---|---|
+| Status | `sensor.plot_a1_status` | `empty`, `planned`, `covered`, `growing`, `ready`, `overdue`; attributes: crop, sowing, uncover and harvest dates, day, water due, next plan |
+| Harvest date | `sensor.plot_a1_harvest_date` | first day of the harvest window |
+| Progress | `sensor.plot_a1_progress` | % from sowing to harvest |
+| Needs water | `binary_sensor.plot_a1_needs_water` | on when watering is due |
+| Watered | `button.plot_a1_watered` | mark watered |
 
-```yaml
-profiles:
-  - id: arugula
-    name: Arugula
-    cover_days: 3
-    uncover_days: 8
-    water: 1
-    notes: ""
-plots:
-  - id: A1
-    label: Plot A1
-icon: mdi:database-cog
-```
-
-### `sensor.microgreens_plot_<ID>`
-
-Example:
-
-```yaml
-state: covered
-plot_id: A1
-sticker: A1
-plant_id: arugula
-plant_name: Arugula
-days_since_planting: 2
-cover_end: 2025-10-01
-harvest_date: 2025-10-09
-next_watering_due: 2025-09-27
-```
-
----
+Hub (**Microgreens** device): `sensor.microgreens_tasks_today` (count, task list attribute), `sensor.microgreens_ready_to_harvest`, `binary_sensor.microgreens_watering_due`, `button.microgreens_water_all_due`, `todo.microgreens_tasks`.
 
 ## Services
 
-Invoke from Developer Tools → Services, automations, or cards.
+Each takes `plot` (ID or name, for example `A1`) or `device_id` (the plot's device) and works on that plot's current tray.
 
-### `microgreens.profile_upsert`
+| Service | Fields | Does |
+|---|---|---|
+| `ha_microgreens.sow` | `crop`, `date`, `label`, `notes` | Sow (date today or earlier) or plan (later date). Without `crop`, confirms the plot's planned sowing. |
+| `ha_microgreens.water` | | Mark watered. Without a plot: every tray that is due. |
+| `ha_microgreens.uncover` | | Record the end of the blackout. |
+| `ha_microgreens.harvest` | `yield_grams`, `rating`, `notes` | Harvest into the history. |
+| `ha_microgreens.discard` | `reason`, `notes` | Failed tray to the history, or cancel a plan. |
+| `ha_microgreens.shift` | `days` | Move a tray's harvest (or a plan's sowing) by days. |
+| `ha_microgreens.send_digest` | | Send today's digest now. |
+| `ha_microgreens.get_tasks` | | Returns today's tasks (response data). |
 
-Create or update a plant profile.
-
-```yaml
-service: microgreens.profile_upsert
-data:
-  id: arugula
-  name: Arugula
-  cover_days: 3
-  uncover_days: 8
-  watering_frequency_days: 1
-  notes: "Grows fast"
-```
-
-### `microgreens.profile_delete`
+Example: a button on the shelf (any Zigbee button) that waters everything due.
 
 ```yaml
-service: microgreens.profile_delete
-data:
-  id: arugula
+automation:
+  - alias: Shelf button waters the microgreens
+    triggers:
+      - trigger: state
+        entity_id: event.shelf_button_action
+    actions:
+      - action: ha_microgreens.water
 ```
 
-### `microgreens.plot_add`
+Example: send the digest when you come home instead of at a fixed time (turn the morning digest off in Settings).
 
 ```yaml
-service: microgreens.plot_add
-data:
-  plot_id: B1
-  label: Tray B1
+automation:
+  - alias: Microgreens digest on arrival
+    triggers:
+      - trigger: zone
+        entity_id: person.me
+        zone: zone.home
+        event: enter
+    actions:
+      - action: ha_microgreens.send_digest
 ```
 
-### `microgreens.plot_remove`
+## Backup
 
-```yaml
-service: microgreens.plot_remove
-data:
-  plot_id: B1
-```
-
-### `microgreens.plot_rename`
-
-```yaml
-service: microgreens.plot_rename
-data:
-  plot_id: A1
-  label: Plot-3
-```
-
-### `microgreens.deploy`
-
-Deploy a profile to a plot.
-
-```yaml
-service: microgreens.deploy
-data:
-  plot_id: A1
-  profile_id: arugula
-  start_date: "2025-09-26"
-  # sticker: "A1"  # optional, defaults to plot id
-```
-
-### `microgreens.unassign`
-
-Clear a plot.
-
-```yaml
-service: microgreens.unassign
-data:
-  plot_id: A1
-```
-
-### `microgreens.shift_schedule`
-
-Shift all dates for one plot.
-
-```yaml
-service: microgreens.shift_schedule
-data:
-  plot_id: A1
-  days: 1
-```
-
-### `microgreens.seed_defaults`
-
-Re-apply default plots/profiles.
-
-```yaml
-service: microgreens.seed_defaults
-```
-
----
-
-## Calendar Behavior
-
-* Exposes a read-only calendar entity (`calendar.microgreens`).
-* Shows one **all-day event** per occupied plot:
-  * Start = deployment date, End = `harvest_date + 1`.
-  * Summary: `<title_prefix> <Plant Name> @ <Plot ID>`
-  * Description includes sticker, plant id, cover/harvest dates, notes.
-* Clearing/harvesting a plot removes its calendar event automatically.
-
-No external calendar services are called; events come from the integration’s calendar entity.
-
----
-
-## Screenshots
-
-Below are example screenshots of the dashboard and editors.
-
-![Single-card dashboard](/img/single-card-dash.png)
-
-Single-card dashboard showing the full microgreens overview card.
-
-![Single plot card](/img/single_plot_card.png)
-
-Compact single-plot card with state, plant, and dates.
-
-![Profile editor](/img/profile-editor.png)
-
-Profiles editor for cover/uncover durations, watering frequency, and notes.
-
-![Plot editor](/img/plot-editor.png)
-
-Plots manager for creating and editing new Plots
-
----
+Settings > Backup exports plots, crops, trays and history to a JSON file and imports one back (replacing everything). Home Assistant backups include the data too (`.storage/ha_microgreens`).
 
 ## Troubleshooting
 
-* **“Custom element doesn’t exist” / “Card type not found”**
-
-  * Restart HA, hard-refresh your browser.
-  * Verify `/config/www/ha-microgreens/*.js` exist.
-  * If using YAML dashboards, make sure you added `/local/ha-microgreens/*.js` as resources.
-
-* **Buttons do nothing**
-
-  * Ensure the integration is installed and services exist.
-  * See **Settings → System → Logs**.
-
-* **Unknown / Entity not found**
-
-  * Integration didn’t create sensors. Ensure one config entry exists. Restart HA.
-
-* **No calendar events**
-
-  * Verify calendar entity supports `create_event`/`delete_event`.
-
-* **No notifications**
-
-  * Ensure `notify.<service>` exists.
-
----
+- **The panel or card does not appear**: restart Home Assistant after installing, then reload the browser (the files are versioned, so one reload is enough). Diagnostics (on the integration page) show whether the panel and card were registered.
+- **No notifications**: check the target in Settings and use **Send test**. Nothing is sent on a day with no tasks; **Send digest now** says so.
+- **"Only an administrator can change this"**: crops, plots, settings and backups need an administrator; everyone can sow, water, uncover and harvest.
 
 ## Development
 
-* **Backend**: async Python, storage in `.storage/microgreens_store`.
-* **Frontend**: plain JS web components, no build step.
-* For local testing, serve cards from `/local/ha-microgreens/` with `?v=timestamp` to bust cache:
+```bash
+python -m pytest                     # the suite, inside a real Home Assistant (tools in requirements-test.txt)
+devtools/release_check.sh            # what CI runs before a release
+cd devtools/testbox && ./up.sh --fresh --legacy && python3 hactl.py setup   # a disposable real HA on :8324
+PLAYWRIGHT=/path/to/node_modules/playwright node devtools/screenshots.cjs    # panel and card screenshots from the box
+```
 
-  ```
-  /local/ha-microgreens/microgreens-card.js?v=1234
-  ```
+See [CLAUDE.md](CLAUDE.md) for the rules and traps, and [CHANGELOG.md](CHANGELOG.md).
 
----
-
-## Contributing / Issues
-
-* Issues / feature requests: [https://github.com/3dg1luk43/ha-microgreens/issues](https://github.com/3dg1luk43/ha-microgreens/issues)
-* PRs welcome. Follow HA coding standards, async safety, and selectors.
-* License: MIT
+Issues and ideas: [github.com/3dg1luk43/ha-microgreens/issues](https://github.com/3dg1luk43/ha-microgreens/issues). License: AGPL-3.0-or-later.

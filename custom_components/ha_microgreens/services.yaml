@@ -1,0 +1,97 @@
+sow:
+  fields:
+    plot: &plot
+      example: A1
+      selector:
+        text:
+    device_id: &device
+      selector:
+        device:
+          filter:
+            - integration: ha_microgreens
+    crop:
+      example: radish
+      selector:
+        text:
+    date:
+      selector:
+        date:
+    label:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+
+water:
+  fields:
+    plot: *plot
+    device_id: *device
+
+uncover:
+  fields:
+    plot: *plot
+    device_id: *device
+
+harvest:
+  fields:
+    plot: *plot
+    device_id: *device
+    yield_grams:
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.1
+          unit_of_measurement: g
+          mode: box
+    rating:
+      selector:
+        number:
+          min: 1
+          max: 5
+          step: 1
+          mode: slider
+    notes:
+      selector:
+        text:
+          multiline: true
+
+discard:
+  fields:
+    plot: *plot
+    device_id: *device
+    reason:
+      default: other
+      selector:
+        select:
+          translation_key: discard_reason
+          options:
+            - mold
+            - poor_germination
+            - pests
+            - dried_out
+            - other
+    notes:
+      selector:
+        text:
+          multiline: true
+
+shift:
+  fields:
+    plot: *plot
+    device_id: *device
+    days:
+      required: true
+      default: 1
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 1
+          mode: box
+
+send_digest:
+
+get_tasks:

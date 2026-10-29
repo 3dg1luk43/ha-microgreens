@@ -1,0 +1,359 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Microgreens",
+        "description": "Plan, grow and harvest microgreen trays. Crops, plots and plantings are managed in the Microgreens panel in the sidebar. If Microgreens 0.1 was installed before, its plots, crops and trays are imported."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Microgreens is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Notifications",
+        "description": "Who is told about the day's tasks, and when. The same settings are on the Settings tab of the Microgreens panel.",
+        "data": {
+          "notify_targets": "Notify targets",
+          "persistent_notification": "Show a Home Assistant notification",
+          "digest_enabled": "Morning digest",
+          "digest_time": "Digest time",
+          "reminder_enabled": "Evening reminder",
+          "reminder_time": "Reminder time",
+          "notification_actions": "Action buttons on phones"
+        },
+        "data_description": {
+          "notify_targets": "Notify services or notify entities, for example notify.mobile_app_phone.",
+          "persistent_notification": "The digest also appears in the Home Assistant sidebar and disappears once every task in it is done.",
+          "digest_enabled": "One message a day listing everything due: harvests, uncovering, watering, sowing, soaking.",
+          "digest_time": "When the digest is sent.",
+          "reminder_enabled": "A second message only if something is still open (a harvest only on its last day).",
+          "reminder_time": "When the reminder is sent.",
+          "notification_actions": "Companion app notifications get a \"Watered all\" button and open the panel when tapped."
+        }
+      }
+    }
+  },
+  "common": {
+    "digest_title": "Microgreens today",
+    "reminder_title": "Microgreens: still to do",
+    "test_title": "Microgreens",
+    "test_message": "Test notification from Microgreens.",
+    "line_harvest": "Harvest: {items}",
+    "line_uncover": "Uncover: {items}",
+    "line_water": "Water: {items}",
+    "line_sow": "Sow: {items}",
+    "line_soak": "Soak seeds: {items}",
+    "item": "{plot} ({crop})",
+    "tag_last_day": "{item}, last day",
+    "tag_late": "{item}, late",
+    "action_water_all": "Watered all",
+    "action_open": "Open",
+    "task_harvest": "Harvest {plot} ({crop})",
+    "task_uncover": "Uncover {plot} ({crop})",
+    "task_water": "Water {plot} ({crop})",
+    "task_sow": "Sow {crop} on {plot}",
+    "task_soak": "Soak {crop} seeds for {plot}",
+    "default_plot_name": "Plot {id}",
+    "crop_arugula": "Arugula",
+    "crop_radish": "Radish",
+    "crop_broccoli": "Broccoli",
+    "crop_mustard": "Mustard",
+    "crop_pea": "Pea shoots",
+    "crop_sunflower": "Sunflower",
+    "crop_coriander": "Coriander"
+  },
+  "entity": {
+    "binary_sensor": {
+      "watering_due": {
+        "name": "Watering due"
+      },
+      "needs_water": {
+        "name": "Needs water"
+      }
+    },
+    "button": {
+      "water_all": {
+        "name": "Water all due"
+      },
+      "water": {
+        "name": "Watered"
+      }
+    },
+    "sensor": {
+      "tasks_today": {
+        "name": "Tasks today",
+        "unit_of_measurement": "tasks"
+      },
+      "ready_to_harvest": {
+        "name": "Ready to harvest",
+        "unit_of_measurement": "plots"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "empty": "Empty",
+          "planned": "Planned",
+          "covered": "Covered",
+          "growing": "Growing",
+          "ready": "Ready",
+          "overdue": "Overdue"
+        }
+      },
+      "harvest_date": {
+        "name": "Harvest date"
+      },
+      "progress": {
+        "name": "Progress"
+      }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tasks"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Microgreens is not loaded."
+    },
+    "invalid_name": {
+      "message": "The {field} must be 1 to {max} characters."
+    },
+    "text_too_long": {
+      "message": "The text is longer than {max} characters."
+    },
+    "invalid_number": {
+      "message": "{field} must be a whole number from {min} to {max}."
+    },
+    "invalid_date": {
+      "message": "{field} is not a valid date here."
+    },
+    "invalid_color": {
+      "message": "The colour must look like #43a047."
+    },
+    "invalid_id": {
+      "message": "A plot ID may only use letters, digits, - and _ (up to 32)."
+    },
+    "invalid_reason": {
+      "message": "Unknown reason."
+    },
+    "invalid_order": {
+      "message": "The new order must list every plot exactly once."
+    },
+    "invalid_backup": {
+      "message": "This is not a Microgreens backup."
+    },
+    "too_many": {
+      "message": "At most {max} are allowed."
+    },
+    "plot_exists": {
+      "message": "Plot {plot} already exists."
+    },
+    "plot_in_use": {
+      "message": "{plot} still has plantings. Harvest or discard them first."
+    },
+    "plot_busy": {
+      "message": "{plot} is taken by {crop} from {start} to {end}."
+    },
+    "plot_empty": {
+      "message": "Nothing is growing on {plot}."
+    },
+    "no_plan": {
+      "message": "{plot} has no planned sowing to confirm. Give a crop to sow a new tray."
+    },
+    "no_plot": {
+      "message": "Choose a plot."
+    },
+    "unknown_plot": {
+      "message": "There is no plot {plot}."
+    },
+    "unknown_crop": {
+      "message": "There is no crop {crop}."
+    },
+    "unknown_planting": {
+      "message": "That planting no longer exists."
+    },
+    "unknown_history": {
+      "message": "That history entry no longer exists."
+    },
+    "unknown_task": {
+      "message": "Unknown task."
+    },
+    "not_a_plot_device": {
+      "message": "That device is not a Microgreens plot."
+    },
+    "sown_in_future": {
+      "message": "A tray that is already sown cannot have a sowing date in the future."
+    },
+    "already_sown": {
+      "message": "This tray is already sown."
+    },
+    "not_sown": {
+      "message": "This tray is only planned; confirm the sowing first."
+    },
+    "shift_too_far": {
+      "message": "The light stage cannot be shorter than one day."
+    }
+  },
+  "issues": {
+    "legacy_entry": {
+      "title": "Remove the old Microgreens 0.1 entry",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Remove the old Microgreens 0.1 entry",
+            "description": "Microgreens now runs as ha_microgreens and has imported the plots, crops and trays of the old \"microgreens\" entry. Submit to delete the old entry. Then remove the old Microgreens 0.1 download (custom_components/microgreens) in HACS or by hand, and restart."
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "discard_reason": {
+      "options": {
+        "mold": "Mold",
+        "poor_germination": "Poor germination",
+        "pests": "Pests",
+        "dried_out": "Dried out",
+        "other": "Other"
+      }
+    }
+  },
+  "services": {
+    "sow": {
+      "name": "Sow",
+      "description": "Sow a crop on a plot (today or a past date), plan it (a later date), or without a crop confirm the plot's planned sowing.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name, for example A1."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        },
+        "crop": {
+          "name": "Crop",
+          "description": "Crop ID or name. Leave empty to confirm the plot's planned sowing."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Sowing date. Defaults to today; a later date makes it a plan."
+        },
+        "label": {
+          "name": "Label",
+          "description": "Sticker or batch code. Defaults to the plot ID and date."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free text kept with the tray."
+        }
+      }
+    },
+    "water": {
+      "name": "Water",
+      "description": "Mark a plot's tray as watered today. Without a plot, every tray that is due.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name. Leave empty for every tray that is due."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        }
+      }
+    },
+    "uncover": {
+      "name": "Uncover",
+      "description": "Record that a plot's tray came out of the blackout today.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        }
+      }
+    },
+    "harvest": {
+      "name": "Harvest",
+      "description": "Harvest a plot's tray and record it in the history.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        },
+        "yield_grams": {
+          "name": "Yield",
+          "description": "Harvested weight in grams."
+        },
+        "rating": {
+          "name": "Rating",
+          "description": "1 to 5."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Added to the tray's notes in the history."
+        }
+      }
+    },
+    "discard": {
+      "name": "Discard",
+      "description": "Throw a failed tray away (recorded in the history), or cancel a planned one.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        },
+        "reason": {
+          "name": "Reason",
+          "description": "Why it failed."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Added to the tray's notes in the history."
+        }
+      }
+    },
+    "shift": {
+      "name": "Shift",
+      "description": "Move a sown tray's harvest by some days, or a planned tray's sowing date.",
+      "fields": {
+        "plot": {
+          "name": "Plot",
+          "description": "Plot ID or name."
+        },
+        "device_id": {
+          "name": "Plot device",
+          "description": "The plot's device, instead of Plot."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Positive to postpone, negative to bring forward."
+        }
+      }
+    },
+    "send_digest": {
+      "name": "Send digest",
+      "description": "Send today's task digest now, to every configured target."
+    },
+    "get_tasks": {
+      "name": "Get tasks",
+      "description": "Return today's open tasks."
+    }
+  }
+}

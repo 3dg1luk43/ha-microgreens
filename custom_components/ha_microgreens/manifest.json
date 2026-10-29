@@ -1,0 +1,15 @@
+{
+  "domain": "ha_microgreens",
+  "name": "Microgreens",
+  "after_dependencies": ["frontend", "lovelace", "mobile_app"],
+  "codeowners": ["@3dg1luk43"],
+  "config_flow": true,
+  "dependencies": ["http", "repairs", "websocket_api"],
+  "documentation": "https://github.com/3dg1luk43/ha-microgreens",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/3dg1luk43/ha-microgreens/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.2.0"
+}
