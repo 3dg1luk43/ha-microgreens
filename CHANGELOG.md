@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 - Unreleased
+## 0.2.1 - 06/11/2026
 
 A rebuild. The integration is now `ha_microgreens`; 0.1.x data is imported on first setup.
 
