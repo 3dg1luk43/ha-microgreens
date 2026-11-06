@@ -97,6 +97,7 @@ from .notification_rules import (
     normalize_options,
     parse_time,
     task_summary,
+    uncover_all_action,
     water_all_action,
 )
 from . import schedule
@@ -542,6 +543,20 @@ class MicrogreensManager:
         return planting
 
     @callback
+    def uncover_due(self) -> int:
+        """Uncover every tray whose uncover task is open; returns how many."""
+        today = self.today()
+        targets = [
+            p for p in self.data.plantings
+            if any(t.kind == TASK_UNCOVER for t in schedule.tasks_for_planting(p, today))
+        ]
+        for planting in targets:
+            planting.uncovered_on = today
+        if targets:
+            self._changed()
+        return len(targets)
+
+    @callback
     def water(self, planting_ids: Iterable[str] | None = None) -> int:
         """Mark plantings watered today. None waters every tray that is due."""
         today = self.today()
@@ -811,9 +826,13 @@ class MicrogreensManager:
 
     @callback
     def _on_mobile_action(self, event: Event) -> None:
-        if event.data.get("action") == water_all_action(self.entry.entry_id):
+        action = event.data.get("action")
+        if action == water_all_action(self.entry.entry_id):
             count = self.water(None)
             _LOGGER.debug("Watered %d trays from a notification action", count)
+        elif action == uncover_all_action(self.entry.entry_id):
+            count = self.uncover_due()
+            _LOGGER.debug("Uncovered %d trays from a notification action", count)
 
     # ------------------------------------------------------------------ #
     # Internals

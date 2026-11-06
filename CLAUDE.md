@@ -62,6 +62,9 @@ The washdata venv (HA 2026.2.3, pytest-homeassistant-custom-component) is the lo
 - **Top-level `await` in the panel/card module breaks the panel**: HA creates the element before the module
   finishes, `hass` lands as a plain property and the setter never runs (blank panel). The modules define their
   elements synchronously and `await coreReady` inside `_boot()`; `upgradeProperties()` re-applies early props.
+- **The card module must not define elements at import time.** It is an extra module, imported in parallel with HA's
+  app bundle, which replaces `window.customElements` with a scoped-registry polyfill; a tag defined before that is
+  invisible to the dashboard ("Custom element doesn't exist", ~1 in 5 loads). It defines after `whenDefined('home-assistant')`.
 - `DeviceInfo.via_device` is deprecated from HA 2026.8 (removed 2027.8); `entity.py` sends `via_device_id` when
   the running HA has it. The hub device is created in `async_setup_entry` before the platforms for that reason.
 - Panel `.mg-*` class names share one shadow root with core's; a reused name silently restyles (the board's

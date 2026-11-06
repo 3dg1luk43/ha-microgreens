@@ -105,6 +105,7 @@ PROFILE_PALETTE = (
 # Mobile companion action ids. The entry id is appended, so two installs
 # (or a stale notification from a removed entry) cannot act on each other.
 ACTION_WATER_ALL = "HA_MICROGREENS_WATER_ALL"
+ACTION_UNCOVER_ALL = "HA_MICROGREENS_UNCOVER_ALL"
 
 PERSISTENT_NOTIFICATION_ID = "ha_microgreens_tasks"
 

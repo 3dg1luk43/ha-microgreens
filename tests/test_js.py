@@ -24,9 +24,10 @@ def test_module_parses(path: Path, tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_core_unit_tests() -> None:
+@pytest.mark.parametrize("script", ["core.test.mjs", "card.test.mjs"])
+def test_node_unit_tests(script: str) -> None:
     result = subprocess.run(
-        [NODE, str(ROOT / "tests" / "js" / "core.test.mjs")],
+        [NODE, str(ROOT / "tests" / "js" / script)],
         capture_output=True,
         text=True,
         env={**os.environ, "TZ": "Europe/Prague"},

@@ -277,11 +277,19 @@ class LegacyPlotCard extends HaMicrogreensCard {
   setConfig(config) { super.setConfig({ ...config, type: 'custom:ha-microgreens-card', view: 'plot' }); }
 }
 
+// HA's app bundle installs a scoped custom-element registry polyfill that
+// replaces window.customElements, and extra modules are imported in parallel
+// with that bundle. A tag defined before the swap exists only in the native
+// registry: the dashboard reports "Custom element doesn't exist" until a reload
+// happens to lose the race. <home-assistant> is defined after the swap (the
+// polyfill backs it with a native stand-in, so this promise resolves either way).
 const define = (tag, cls) => { if (!customElements.get(tag)) customElements.define(tag, cls); };
-define('ha-microgreens-card', HaMicrogreensCard);
-define('ha-microgreens-card-editor', HaMicrogreensCardEditor);
-define('microgreens-card', LegacyBoardCard);
-define('microgreens-plot-card', LegacyPlotCard);
+customElements.whenDefined('home-assistant').then(() => {
+  define('ha-microgreens-card', HaMicrogreensCard);
+  define('ha-microgreens-card-editor', HaMicrogreensCardEditor);
+  define('microgreens-card', LegacyBoardCard);
+  define('microgreens-plot-card', LegacyPlotCard);
+});
 
 // The card picker reads this list when it opens; HA sets <html lang> to the
 // user's language long before that.

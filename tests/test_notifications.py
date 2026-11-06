@@ -28,9 +28,11 @@ STRINGS = {
     "line_harvest": "Harvest: {items}",
     "line_water": "Water: {items}",
     "line_uncover": "Uncover: {items}",
-    "item": "{plot} ({crop})",
-    "tag_last_day": "{item}, last day",
-    "tag_late": "{item}, late",
+    "item": "{crop}",
+    "item_notes": "{crop} ({notes})",
+    "note_last_day": "last day",
+    "note_late": "late",
+    "action_uncover_all": "Uncovered all",
     "action_water_all": "Watered all",
     "action_open": "Open",
 }
@@ -57,15 +59,35 @@ def test_digest_lists_every_task_grouped() -> None:
     notice = build_notice("digest", *_fixture(), STRINGS)
     assert notice.title == "Microgreens today"
     assert notice.message == (
-        "Harvest: Plot A1 (Radish), Plot A2 (Radish), last day\n"
-        "Water: Plot A1 (Radish), late, Plot A2 (Radish)"
+        "Harvest: Radish (Plot A1), Radish (Plot A2, last day)\n"
+        "Water: Radish (Plot A1, late), Radish (Plot A2)"
     )
     assert notice.water_count == 2
 
 
+def test_items_name_the_plot_only_when_the_crop_is_ambiguous() -> None:
+    """Every item used to read "Plot A1 (Radish), late, ...": commas for two
+    things and a plot name nobody needs when the crop already says which tray."""
+    plantings = {
+        "p1": Planting(id="p1", plot_id="A1", profile_id="a", crop=Crop(name="Rukola", color="#1e88e5"), sown_on=D),
+        "p2": Planting(id="p2", plot_id="A2", profile_id="h", crop=Crop(name="Hořčice", color="#1e88e5"), sown_on=D),
+        # A plan of the same crop elsewhere (any case): "Koriandr" alone is ambiguous.
+        "p3": Planting(id="p3", plot_id="A3", profile_id="k", crop=Crop(name="koriandr", color="#1e88e5"), sown_on=D),
+        "p4": Planting(id="p4", plot_id="A4", profile_id="k", crop=Crop(name="Koriandr", color="#1e88e5"), sown_on=D, planned=True),
+    }
+    plots = {pid: Plot(pid, f"Plot {pid}") for pid in ("A1", "A2", "A3", "A4")}
+    tasks = [
+        Task("uncover", "p1", "A1", D, late=True),
+        Task("uncover", "p2", "A2", D, late=True),
+        Task("water", "p3", "A3", D),
+    ]
+    notice = build_notice("digest", tasks, plantings, plots, STRINGS)
+    assert notice.message == "Uncover: Rukola (late), Hořčice (late)\nWater: koriandr (Plot A3)"
+
+
 def test_reminder_drops_harvests_not_yet_on_their_last_day() -> None:
     notice = build_notice("reminder", *_fixture(), STRINGS)
-    assert notice.lines[0] == "Harvest: Plot A2 (Radish), last day"
+    assert notice.lines[0] == "Harvest: Radish (Plot A2, last day)"
     tasks, plantings, plots = _fixture()
     assert build_notice("reminder", tasks[:1], plantings, plots, STRINGS) is None
     assert build_notice("digest", [], plantings, plots, STRINGS) is None
@@ -84,6 +106,11 @@ def test_mobile_data_actions() -> None:
     assert data["actions"][0] == {"action": "HA_MICROGREENS_WATER_ALL_E", "title": "Watered all"}
     assert data["actions"][1] == {"action": "URI", "title": "Open", "uri": "/ha-microgreens"}
     assert "actions" not in mobile_data(notice, entry_id="E", url="/x", strings=STRINGS, actions=False)
+    tasks, plantings, plots = _fixture()
+    notice = build_notice("digest", [Task("uncover", "p1", "A1", D), *tasks[2:]], plantings, plots, STRINGS)
+    data = mobile_data(notice, entry_id="E", url="/x", strings=STRINGS, actions=True)
+    # Three buttons at most: Android shows no more.
+    assert [a["action"] for a in data["actions"]] == ["HA_MICROGREENS_UNCOVER_ALL_E", "HA_MICROGREENS_WATER_ALL_E", "URI"]
 
 
 def test_options_are_normalized() -> None:
@@ -123,8 +150,8 @@ async def test_digest_at_its_time_once_per_day(hass: HomeAssistant, freezer, not
     assert {c.service for c in notify_calls} == {"mobile_app_phone", "plain"}
     mobile = next(c for c in notify_calls if c.service == "mobile_app_phone")
     assert mobile.data["title"] == "Microgreens today"
-    assert mobile.data["message"] == "Uncover: Plot A1 (Radish)\nWater: Plot A1 (Radish), late"
-    assert mobile.data["data"]["actions"][0]["action"] == f"HA_MICROGREENS_WATER_ALL_{entry.entry_id}"
+    assert mobile.data["message"] == "Uncover: Radish\nWater: Radish (late)"
+    assert [a["title"] for a in mobile.data["data"]["actions"]] == ["Uncovered all", "Watered all", "Open"]
     plain = next(c for c in notify_calls if c.service == "plain")
     assert "data" not in plain.data  # companion-only keys stay off other targets
     notifications = persistent_notification._async_get_or_create_notifications(hass)
@@ -193,6 +220,23 @@ async def test_mobile_action_waters_all(hass: HomeAssistant, freezer, notify_cal
     hass.bus.async_fire("mobile_app_notification_action", {"action": f"HA_MICROGREENS_WATER_ALL_{entry.entry_id}"})
     await hass.async_block_till_done()
     assert not any(t.kind == "water" for t in manager.tasks())
+
+
+async def test_mobile_action_uncovers_trays_that_are_due(hass: HomeAssistant, freezer, notify_calls) -> None:
+    """Uncovering had no notification action: the tray stayed "late" until
+    someone found the button in the panel."""
+    entry = await _entry(hass, freezer)
+    manager = entry.runtime_data
+    (due,) = sow_unwatered(manager, ["A1"], "radish", "2026-10-26")
+    (early,) = sow_unwatered(manager, ["A2"], "radish", "2026-10-28")
+    hass.bus.async_fire("mobile_app_notification_action", {"action": "HA_MICROGREENS_UNCOVER_ALL_other"})
+    await hass.async_block_till_done()
+    assert any(t.kind == "uncover" for t in manager.tasks())
+    hass.bus.async_fire("mobile_app_notification_action", {"action": f"HA_MICROGREENS_UNCOVER_ALL_{entry.entry_id}"})
+    await hass.async_block_till_done()
+    assert not any(t.kind == "uncover" for t in manager.tasks())
+    assert due.uncovered_on == date(2026, 10, 29)
+    assert early.uncovered_on is None  # not due yet: stays covered
 
 
 async def test_persistent_notification_clears_when_done(hass: HomeAssistant, freezer, notify_calls) -> None:

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .const import (
+    ACTION_UNCOVER_ALL,
     ACTION_WATER_ALL,
     CONF_ACTIONS,
     CONF_DIGEST_ENABLED,
@@ -27,6 +28,7 @@ from .const import (
     DEFAULT_OPTIONS,
     DOMAIN,
     TASK_HARVEST,
+    TASK_UNCOVER,
     TASK_WATER,
 )
 from .models import Planting, Plot
@@ -104,6 +106,7 @@ class Notice:
     message: str
     task_ids: tuple[str, ...] = ()
     water_count: int = 0
+    uncover_count: int = 0
     lines: list[str] = field(default_factory=list)
 
 
@@ -120,26 +123,47 @@ def fmt(strings: Mapping[str, str], key: str, **values: Any) -> str:
         return template
 
 
+def shared_crop_names(plantings: Mapping[str, Planting]) -> set[str]:
+    """Crop names (casefolded) that more than one tray or plan carries.
+
+    Only these need the plot to tell the trays apart; everywhere else the crop
+    alone reads faster. Judged on every planting, not just the ones in the
+    message, so "Rukola" never means the wrong one of two trays.
+    """
+    seen: set[str] = set()
+    shared: set[str] = set()
+    for planting in plantings.values():
+        name = planting.crop.name.casefold()
+        (shared if name in seen else seen).add(name)
+    return shared
+
+
 def task_item(
     task: Task,
     plantings: Mapping[str, Planting],
     plots: Mapping[str, Plot],
     strings: Mapping[str, str],
+    shared: set[str] | None = None,
 ) -> str:
-    """``A1 (Radish)``, with ``, last day`` / ``, late`` where it matters."""
+    """``Radish``, or ``Radish (A1, late)`` when the plot or a note matters.
+
+    The plot is added only for a crop in ``shared`` (see
+    :func:`shared_crop_names`); ``late`` / ``last day`` only where they apply.
+    Notes go in brackets so the commas between items stay unambiguous.
+    """
     planting = plantings.get(task.planting_id)
-    plot = plots.get(task.plot_id)
-    item = fmt(
-        strings,
-        "item",
-        plot=plot.name if plot else task.plot_id,
-        crop=planting.crop.name if planting else "?",
-    )
+    crop = planting.crop.name if planting else "?"
+    notes = []
+    if planting is None or crop.casefold() in (shared or set()):
+        plot = plots.get(task.plot_id)
+        notes.append(plot.name if plot else task.plot_id)
     if task.kind == TASK_HARVEST and task.last_day:
-        return fmt(strings, "tag_last_day", item=item)
-    if task.late:
-        return fmt(strings, "tag_late", item=item)
-    return item
+        notes.append(fmt(strings, "note_last_day"))
+    elif task.late:
+        notes.append(fmt(strings, "note_late"))
+    if not notes:
+        return fmt(strings, "item", crop=crop)
+    return fmt(strings, "item_notes", crop=crop, notes=", ".join(notes))
 
 
 def task_summary(
@@ -170,9 +194,10 @@ def build_notice(
     chosen = [t for t in tasks if kind != KIND_REMINDER or reminder_worthy(t)]
     if not chosen:
         return None
+    shared = shared_crop_names(plantings)
     lines = []
     for task_kind, group in group_by_kind(chosen).items():
-        items = ", ".join(task_item(t, plantings, plots, strings) for t in group)
+        items = ", ".join(task_item(t, plantings, plots, strings, shared) for t in group)
         lines.append(fmt(strings, f"line_{task_kind}", items=items))
     return Notice(
         kind=kind,
@@ -180,6 +205,7 @@ def build_notice(
         message="\n".join(lines),
         task_ids=tuple(t.id for t in chosen),
         water_count=sum(1 for t in chosen if t.kind == TASK_WATER),
+        uncover_count=sum(1 for t in chosen if t.kind == TASK_UNCOVER),
         lines=lines,
     )
 
@@ -191,6 +217,10 @@ def is_mobile_target(target: str) -> bool:
 
 def water_all_action(entry_id: str) -> str:
     return f"{ACTION_WATER_ALL}_{entry_id}"
+
+
+def uncover_all_action(entry_id: str) -> str:
+    return f"{ACTION_UNCOVER_ALL}_{entry_id}"
 
 
 def mobile_data(
@@ -214,6 +244,8 @@ def mobile_data(
     }
     if actions and notice.kind != KIND_TEST:
         buttons = []
+        if notice.uncover_count:
+            buttons.append({"action": uncover_all_action(entry_id), "title": fmt(strings, "action_uncover_all")})
         if notice.water_count:
             buttons.append({"action": water_all_action(entry_id), "title": fmt(strings, "action_water_all")})
         buttons.append({"action": "URI", "title": fmt(strings, "action_open"), "uri": url})

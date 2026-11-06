@@ -14,7 +14,7 @@ Plan, grow and harvest microgreen trays from Home Assistant. Keep track of which
   - **History**: harvests and failures, with yield, rating and per-crop averages.
   - **Settings** (administrators): notifications and backup.
 - **A dashboard card** with a visual editor: board, today's tasks, timeline, or one plot.
-- **Notifications**: a morning digest, an evening reminder if something is still open, a "Watered all" button on the companion app, and an optional Home Assistant notification that clears itself.
+- **Notifications**: a morning digest, an evening reminder if something is still open, "Uncovered all" and "Watered all" buttons on the companion app, and an optional Home Assistant notification that clears itself.
 - **A to-do list** of today's tasks. Checking one off does it.
 - **Entities and services** for automations.
 
@@ -61,7 +61,7 @@ Settings tab (or **Configure** on the integration):
 - **Morning digest** (default 08:00): everything due today, grouped: harvest, uncover, water, sow, soak. Nothing is sent on a day with no tasks.
 - **Evening reminder** (default 19:00): only if something is still open; a harvest only on its last day of the window or once late.
 - **Home Assistant notification**: the digest in the sidebar too, updated as you tick things off and dismissed when all is done.
-- **Phone action buttons**: "Watered all" waters every tray that is due.
+- **Phone action buttons**: "Uncovered all" uncovers every tray due for it, "Watered all" waters every tray that is due.
 
 Watering is only ever marked done by you (panel, card, button, to-do list, service or the phone button), never by a notification being sent.
 
