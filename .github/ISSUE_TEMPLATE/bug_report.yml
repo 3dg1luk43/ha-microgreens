@@ -1,0 +1,151 @@
+name: Bug Report
+description: Something in Microgreens does not work as it should
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+        Please complete **all required fields**. Where a field does not apply, enter `N/A`; do not leave it out. Reports missing key information are flagged automatically and may be closed without investigation.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before You Submit
+      description: Please confirm all of the following before opening this issue.
+      options:
+        - label: I have searched the [existing issues](https://github.com/3dg1luk43/ha-microgreens/issues) and this is not a duplicate.
+          required: true
+        - label: I have provided logs or error evidence in the field below, or entered `N/A` with a reason if genuinely not applicable.
+          required: true
+        - label: I have filled in every applicable field with real values and used `N/A` only where a field genuinely does not apply.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: What went wrong? Be specific (which plot, crop or tray; which notification).
+      placeholder: "I pressed Uncover on plot A2, but the tray still shows as covered..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Where does the bug show up?
+      options:
+        - Sidebar panel
+        - Lovelace card
+        - Notifications (digest, reminder, action buttons)
+        - Entities (sensors, buttons, to-do list)
+        - Services / automations
+        - Grow schedule (dates, status, tasks)
+        - Setup, options or the 0.1.x import
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Microgreens Version
+      description: >
+        Shown in HACS, or on the Microgreens hub device page (Settings → Devices & services → Microgreens).
+        Check the [releases](https://github.com/3dg1luk43/ha-microgreens/releases) first: a bug already fixed in a later release is not re-investigated.
+      placeholder: "vX.Y.Z"
+    validations:
+      required: true
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant Version
+      description: Settings → About. Microgreens needs 2026.2 or newer.
+      placeholder: "2026.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Browser or App
+      description: For panel, card or notification bugs, the browser or the companion app and its platform (e.g. "Firefox 140 on Windows", "Companion app on Android 15"). Otherwise `N/A`.
+      placeholder: "Chrome on macOS, Companion app on iOS, or N/A"
+    validations:
+      required: false
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Sow radish on plot A1 three days ago
+        2. Open the panel, Board tab
+        3. Press '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: debug_log
+    attributes:
+      label: Logs / Error Evidence
+      description: |
+        **Required.** Paste whatever evidence you have: an error line from `Settings → System → Logs`, a warning trace, or a debug session. For panel or card bugs, the browser console (F12 → Console) counts.
+
+        To get debug logs, add this to `configuration.yaml`, restart, reproduce the bug and copy the output from `Settings → System → Logs` (filter by `ha_microgreens`):
+        ```yaml
+        logger:
+          default: info
+          logs:
+            custom_components.ha_microgreens: debug
+        ```
+
+        - **Short output (under ~50 lines):** paste it below.
+        - **Long output:** `Settings → System → Logs → Download full log`, attach the file.
+        - **Diagnostics** (`Settings → Devices & services → Microgreens → ⋮ → Download diagnostics`) help with schedule and data bugs. Attach the file; never paste it inline.
+      placeholder: "Paste log output or error messages here, or describe what file(s) you have attached above..."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Anything else (screenshots, the card configuration, related automations, an unusual setup).
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pr_intention
+    attributes:
+      label: Contributing a Fix
+      description: >
+        Want to fix this yourself? Agree the work with the maintainer **before** you write any code.
+
+
+        1. Tick the box below.
+
+        2. Wait for the maintainer to add the `accepted` label. That is where scope and approach are agreed: the fix may already be in progress, or need a different direction.
+
+        3. Only then open a PR referencing this issue.
+
+
+        A PR opened in parallel with a not-yet-accepted issue is not reviewed until the maintainer decides on the issue.
+      options:
+        - label: I plan to submit a PR fixing this, and I will wait for the `accepted` label before opening it
+          required: false

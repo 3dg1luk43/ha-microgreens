@@ -1,0 +1,23 @@
+# Blank issues are disabled: every issue goes through one of the templates.
+# A template-less report cannot be triaged and is closed automatically.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Questions, ideas & general discussion
+    url: https://github.com/3dg1luk43/ha-microgreens/discussions
+    about: >
+      Not sure it is a bug? Want to float an idea before a formal request?
+      Ask in Discussions; please do not open an issue just to ask a question.
+
+  - name: 🌍 Translations
+    url: https://github.com/3dg1luk43/ha-microgreens/blob/main/CONTRIBUTING.md#translations
+    about: >
+      A new language or a translation fix is a PR with the translation template,
+      no issue needed.
+
+  - name: 🛠️ Want to submit code? Read this first
+    url: https://github.com/3dg1luk43/ha-microgreens/blob/main/CONTRIBUTING.md#agree-the-work-before-you-write-code
+    about: >
+      Open a Bug Report or Feature Request first and wait for the `accepted`
+      label. A PR that links no issue is closed automatically; one linked to an
+      issue not yet accepted waits unreviewed.

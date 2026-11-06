@@ -1,0 +1,57 @@
+name: Auto-Assign Issues
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.issue.pull_request }}
+    steps:
+      - name: Assign issue to maintainer
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const labels = (issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
+
+            // Skip templateless issues from outside contributors: issue_validator.yml
+            // closes them at once, so assigning only adds noise. Same two signals as
+            // its close-templateless-issues job (keep the heading lists in sync).
+            const isPrivileged = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(issue.author_association)
+              || issue.user.type === 'Bot';
+
+            if (!isPrivileged) {
+              const TEMPLATE_LABELS = ['bug', 'feature request', 'documentation'];
+              const KNOWN_HEADINGS = [
+                'Describe the Bug', 'Affected Area', 'Microgreens Version',
+                'Home Assistant Version', 'Browser or App', 'Reproduction Steps',
+                'Expected Behavior', 'Logs / Error Evidence', 'Additional Context',
+                'Before You Submit', 'Contributing a Fix',
+                'Problem or Motivation', 'Proposed Solution', 'Related Area',
+                'Alternatives Considered', 'Contributing an Implementation',
+                'Page / Section', 'What is Wrong or Missing?', 'Suggested Change',
+              ];
+              const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const hasTemplateLabel = labels.some(l => TEMPLATE_LABELS.includes(l));
+              const hasTemplateHeading = KNOWN_HEADINGS.some(
+                h => new RegExp('^#{1,6}[ \\t]+' + escapeRe(h) + '(?=[ \\t]|$)', 'im').test(body)
+              );
+              if (!hasTemplateLabel && !hasTemplateHeading) {
+                console.log(`#${issue.number}: templateless issue - skipping assignment (will be auto-closed).`);
+                return;
+              }
+            }
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              assignees: [context.repo.owner],
+            });
+            console.log(`#${issue.number} assigned to @${context.repo.owner}`);

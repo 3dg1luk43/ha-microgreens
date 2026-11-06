@@ -1,0 +1,245 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit config for Microgreens. Project rules live in CLAUDE.md and CONTRIBUTING.md
+# (read as code guidelines below); this file adds the review settings and the traps
+# reviewers have tripped on before, so they are not re-flagged every round.
+
+language: en-GB
+tone_instructions: >-
+  Be brief and concrete: lead with the failing input or state and what goes wrong.
+  No praise, no restating the diff, no style nits. Plain English, no em dashes.
+  If you are not sure a finding is real, say so.
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_instructions: >-
+    A few bullets: what changes for users, then what changes for developers.
+    No file-by-file list.
+  poem: false
+  in_progress_fortune: false
+  review_status: true
+  collapse_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: false
+  auto_apply_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  # The maintainer fixes findings with an agent loop that reads these blocks.
+  enable_prompt_for_ai_agents: true
+  abort_on_close: true
+  slop_detection:
+    enabled: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    # PRs go to main, or to a release branch such as rebuild/0.2.0 or 0.2.1.
+    base_branches:
+      - "^rebuild/.+$"
+      - "^\\d+\\.\\d+\\.\\d+$"
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+    resolve_merge_conflict:
+      enabled: false
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+    custom_checks:
+      - name: Changelog entry
+        mode: warning
+        instructions: >-
+          A user-visible fix or feature needs an entry in CHANGELOG.md under the
+          unreleased version ("## X.Y.Z - Unreleased"): symptom, cause, fix, with the
+          issue link and a "Thanks to @user" credit where a user reported it. The
+          release's TL;DR must still describe the release. Pure test, devtools or CI
+          changes need none.
+      - name: Strings translated
+        mode: warning
+        instructions: >-
+          A new user-visible string must be a key in strings.json (identical copy in
+          translations/en.json) or in www/i18n/en.json, never inline text in Python or
+          JS. A new key should also appear in translations/cs.json or www/i18n/cs.json;
+          Czech plurals need _one/_few/_many/_other. Do not propose Czech wording.
+      - name: No em dash
+        mode: warning
+        instructions: >-
+          No added line may contain the em dash character (U+2014), in code, docs,
+          translations or commit-facing text. "-" and "->" are fine.
+
+  path_filters:
+    - "!img/**"
+    - "!**/package-lock.json"
+    # Non-English translations: written by translators with the UI context and
+    # checked by tests/test_rules.py. English (strings.json, en.json) stays in review.
+    - "!custom_components/ha_microgreens/translations/cs.json"
+    - "!custom_components/ha_microgreens/www/i18n/cs.json"
+
+  path_instructions:
+    - path: "custom_components/ha_microgreens/**/*.py"
+      instructions: |
+        Home Assistant custom integration, minimum HA 2026.2, no third-party requirements.
+        - "Today" is manager.today() (HA time zone). Flag date.today(), datetime.now() and datetime.utcnow().
+        - No user-facing English in Python: HA text goes in strings.json (common, exceptions, services, entity). Notification text comes from strings.json common.
+        - Every MicrogreensError(key) key exists in strings.json exceptions and as error.<key> in www/i18n/en.json.
+        - Every service needs services.yaml, strings.json services, services.SCHEMAS/HANDLERS and icons.json (tests enforce it).
+        - const.py stays import-free: tests exec it standalone.
+        - Unique ID suffixes, option keys, storage fields and card config keys are never renamed without a migration.
+        - DeviceInfo.via_device is deprecated from HA 2026.8; entity.py sends via_device_id when the running HA has it. The hub device is created in async_setup_entry before the platforms on purpose.
+        Review limits:
+        - Do not suggest a new helper next to an existing implementation; extend the existing one.
+        - There is no Ruff config; CI runs ruff with F and E9 only. Do not cite other rules.
+
+    - path: "custom_components/ha_microgreens/{schedule,models,notification_rules}.py"
+      instructions: |
+        Pure modules: no Home Assistant imports, "today" is passed in.
+        - schedule.py is the single source of truth for dates, status, occupancy and tasks. Flag any status, due date or task re-derived elsewhere (entities, ws_api, manager, the frontend renders `computed` from the snapshot).
+        - The harvest window is anchored to the sowing date; recording an uncover late does not move it. A tray stays covered past its uncover date until someone uncovers it.
+        - Same-day turnover is allowed: a planting may start on the day another one's window ends.
+        - models.clean_* raise MicrogreensError(key); from_store is tolerant and never raises on old or odd data. migrate_legacy skips an unreadable row, never the whole 0.1.x store.
+        - notification_rules.fmt never raises: a translation with a broken placeholder yields its raw text.
+
+    - path: "custom_components/ha_microgreens/manager.py"
+      instructions: |
+        Writes are sync @callback methods that validate everything before changing anything, then call _changed() (delayed save, coalesced push). Flag a write that mutates before it can still raise.
+        Notifications: companion-only keys (tag, group, url, clickAction, actions) go only to notify.mobile_app_* targets. Sending a notification never marks anything done (0.1.x advanced the watering date when the reminder was sent). Mobile action ids carry the entry id.
+
+    - path: "custom_components/ha_microgreens/{ws_api,services}.py"
+      instructions: |
+        Thin adapters over the manager. Config writes (crops, plots, settings, backup, history delete) need require_admin; the everyday tray actions do not. WS subscriptions live on hass.data[DOMAIN]["listeners"], not the manager, so an open panel survives an entry reload.
+
+    - path: "custom_components/ha_microgreens/frontend.py"
+      instructions: |
+        Static path registered once per HA run. Static URL base /ha_microgreens (underscore) and panel path /ha-microgreens (hyphen) must differ. The card loads as a frontend extra module, never a Lovelace resource; 0.1.x resources are removed once, not migrated. The frontend component is absent in the test venv; frontend.py skips itself without it.
+
+    - path: "custom_components/ha_microgreens/www/**/*.js"
+      instructions: |
+        Vanilla JS web components, no build step.
+        - No top-level await in the panel or card module: HA creates the element before the module finishes and the hass setter never runs. Elements are defined synchronously and await coreReady inside _boot().
+        - The card module must not define elements at import time; it defines after customElements.whenDefined('home-assistant') (scoped-registry polyfill).
+        - Every user-visible string goes through I18n.t() (HTML-escaped, template and vars) or tt() (plain text), including title=, placeholder= and aria-label=. Flag raw user text in HTML and double escaping.
+        - Panel .mg-* class names share one shadow root with core's; a reused name silently restyles. [hidden] is forced in core styles on purpose.
+        - Panel push re-renders the open tab except Settings (unsaved edits). Dialogs live outside the tab container and are never re-rendered.
+        - The frontend never computes a status or a date the snapshot already carries.
+
+    - path: "custom_components/ha_microgreens/{strings.json,translations/en.json,www/i18n/en.json}"
+      instructions: |
+        Canonical English. strings.json and translations/en.json must stay identical. Texts are short and plain; flag padding. Keep every {placeholder}. Plurals use key_one/key_other. Other languages are translated separately; never suggest machine translation.
+
+    - path: "tests/**"
+      instructions: |
+        Tests run in a real Home Assistant (pytest-homeassistant-custom-component) and drive the node tests in tests/js. A regression test must fail with its fix reverted. Tests that need a thirsty tray use conftest.sow_unwatered (a backdated sowing counts as watered today). Time is frozen with freezer and the HA time zone, never the host clock.
+
+    - path: "devtools/**"
+      instructions: |
+        Dev tools, not shipped: the release preflight and a disposable Docker Home Assistant (testbox). Never print or commit tokens; devtools/testbox/config/ is gitignored.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Permissions are minimal and no workflow merges anything. Workflows on issue_comment or pull_request_target must never check out or run PR code. Never interpolate an input or event field into shell code; pass it through env. hassfest stays on @master on purpose.
+
+    - path: "CHANGELOG.md"
+      instructions: |
+        Each release opens with a short TL;DR that is rewritten as a whole when entries change. Entries are direct: symptom, cause, fix, issue link, "Thanks to @user". An entry for something found internally carries no link: do not ask for one. No em dashes.
+
+    - path: "{README.md,CONTRIBUTING.md,SECURITY.md,CODE_OF_CONDUCT.md}"
+      instructions: |
+        User-facing docs: short, plain sentences, the thing the reader does first. Flag padding and claims that no longer match the code. No em dashes.
+
+  tools:
+    ruff:
+      enabled: true
+    shellcheck:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    gitleaks:
+      enabled: true
+    osvScanner:
+      enabled: true
+    github-checks:
+      enabled: true
+    # Off: no project config, so their defaults only add noise here.
+    markdownlint:
+      enabled: false
+    yamllint:
+      enabled: false
+    languagetool:
+      enabled: false
+    biome:
+      enabled: false
+    eslint:
+      enabled: false
+    oxc:
+      enabled: false
+    pylint:
+      enabled: false
+    flake8:
+      enabled: false
+    htmlhint:
+      enabled: false
+    stylelint:
+      enabled: false
+    presidio:
+      enabled: false
+    trufflehog:
+      enabled: false
+
+chat:
+  art: false
+  auto_reply: true
+  allow_non_org_members: false
+
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"
+      - "CONTRIBUTING.md"
+  learnings:
+    scope: local
+  issues:
+    scope: local
+  pull_requests:
+    scope: local
+
+issue_enrichment:
+  auto_enrich:
+    enabled: false
+  planning:
+    enabled: true
+    auto_planning:
+      enabled: false

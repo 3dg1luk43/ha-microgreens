@@ -19,6 +19,8 @@ devtools/release_check.sh [--tag v0.2.0]              # release preflight (what 
 cd devtools/testbox && ./up.sh --fresh [--legacy] && python3 hactl.py setup   # real HA container on :8324
 python3 devtools/testbox/hactl.py ws ha_microgreens/snapshot
 PLAYWRIGHT=/root/ha_washdata/playwright-tests/node_modules/playwright node devtools/screenshots.cjs <out>
+devtools/install_hooks.sh                              # pre-commit: em dash, strings.json == en.json, JS parses, ruff
+./deploy_to_ha.sh [--run] [--no-restart]               # prod deploy (gitignored, local only): backup, copy, restart, wait for "loaded"
 ```
 
 The washdata venv (HA 2026.2.3, pytest-homeassistant-custom-component) is the local test env; CI installs

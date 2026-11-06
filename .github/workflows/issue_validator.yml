@@ -1,0 +1,506 @@
+name: Issue Validator
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_body:
+        description: "Paste a simulated issue body to validate (dry-run - nothing is posted)"
+        required: true
+      issue_number:
+        description: "Real issue number to post the result to (leave blank for dry-run only)"
+        required: false
+        default: ""
+
+permissions:
+  issues: write
+
+jobs:
+  close-templateless-issues:
+    runs-on: ubuntu-latest
+    # Strict "no template at all" gate. This closes only genuinely free-form issues
+    # (blank_issues_enabled is false, but the API / some mobile paths can still bypass
+    # the chooser). Issues that DID use a template but tweaked or omitted a field still
+    # carry a template label and its section headings, so they fall through to the
+    # completeness validators below, not here. Maintainers, members, collaborators and
+    # bots are exempt.
+    if: >
+      github.event_name == 'issues' &&
+      (github.event.action == 'opened' || github.event.action == 'reopened') &&
+      github.event.issue.author_association != 'OWNER' &&
+      github.event.issue.author_association != 'MEMBER' &&
+      github.event.issue.author_association != 'COLLABORATOR' &&
+      github.event.issue.user.type != 'Bot'
+    steps:
+      - name: Close issue when no template was used
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const body = issue.body || '';
+
+            // Signal 1: a label one of our templates auto-applies. At `opened` time the
+            // only labels present are those the chosen template set, so a missing label
+            // is strong evidence no template was used.
+            const TEMPLATE_LABELS = ['bug', 'feature request', 'documentation'];
+            const labels = (issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
+            const hasTemplateLabel = labels.some(l => TEMPLATE_LABELS.includes(l));
+
+            // Signal 2: a section heading GitHub renders from one of our issue-form
+            // field labels (rendered as `### Label`). Prefix match, so trailing text
+            // still counts. Keep in sync with auto_assign_issues.yml.
+            const KNOWN_HEADINGS = [
+              'Describe the Bug', 'Affected Area', 'Microgreens Version',
+              'Home Assistant Version', 'Browser or App', 'Reproduction Steps',
+              'Expected Behavior', 'Logs / Error Evidence', 'Additional Context',
+              'Before You Submit', 'Contributing a Fix',
+              'Problem or Motivation', 'Proposed Solution', 'Related Area',
+              'Alternatives Considered', 'Contributing an Implementation',
+              'Page / Section', 'What is Wrong or Missing?', 'Suggested Change',
+            ];
+            const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const hasTemplateHeading = KNOWN_HEADINGS.some(
+              h => new RegExp('^#{1,6}[ \\t]+' + escapeRe(h) + '(?=[ \\t]|$)', 'im').test(body)
+            );
+
+            // Only close when BOTH signals are absent. Requiring both protects real
+            // template issues from ever being closed (a renamed field the heading list
+            // misses is still caught by its label, and vice-versa).
+            if (hasTemplateLabel || hasTemplateHeading) {
+              console.log(`#${issue.number}: template detected (label=${hasTemplateLabel}, heading=${hasTemplateHeading}) - leaving open.`);
+              return;
+            }
+
+            const MARKER = '<!-- templateless-issue-autoclose -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: issue.number, per_page: 100,
+            });
+            const alreadyNoticed = comments.some(c => c.body && c.body.includes(MARKER));
+
+            if (!alreadyNoticed) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number,
+                body: [
+                  MARKER,
+                  `Hi @${issue.user.login}, this issue was opened **without using one of our issue templates**, so it has been closed automatically.`,
+                  '',
+                  'Free-form issues cannot be triaged: the templates collect the details we need (versions, logs, reproduction steps) before anything can be investigated. **Issues that skip the template entirely are not dealt with.**',
+                  '',
+                  'Please open a new issue using one of the templates and fill it in:',
+                  `- [🐛 Bug Report](https://github.com/${owner}/${repo}/issues/new?template=bug_report.yml)`,
+                  `- [✨ Feature Request](https://github.com/${owner}/${repo}/issues/new?template=feature_request.yml)`,
+                  `- [📚 Documentation](https://github.com/${owner}/${repo}/issues/new?template=documentation.yml)`,
+                  '',
+                  `> Just have a question or want to float an idea? Use [Discussions](https://github.com/${owner}/${repo}/discussions) instead. Translation fixes are a PR, no issue needed: see [Translations](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md#translations).`,
+                ].join('\n'),
+              });
+            }
+
+            if (issue.state === 'open') {
+              await github.rest.issues.update({
+                owner, repo, issue_number: issue.number,
+                state: 'closed', state_reason: 'not_planned',
+              });
+            }
+            console.log(`#${issue.number}: closed - no issue template used.`);
+
+  handle-fine-command:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'issue_comment' &&
+      startsWith(github.event.comment.body, '/fine') &&
+      (github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'COLLABORATOR')
+
+    steps:
+      - name: Handle /fine command
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const incompleteLabel = 'more info required';
+            const currentLabels = context.payload.issue.labels.map(l => l.name);
+
+            if (currentLabels.includes(incompleteLabel)) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                name: incompleteLabel,
+              });
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `✅ Cleared by @${context.payload.comment.user.login} - issue marked as fine and queued for review.`,
+            });
+
+  handle-reporter-response:
+    runs-on: ubuntu-latest
+    # When the reporter responds via a comment (instead of editing the issue body),
+    # transition the issue from "more info required" to "awaiting maintainer review"
+    # so the auto-closer doesn't close it as unanswered. The validator can't re-check
+    # comment content (it inspects body fields), so a maintainer reviews instead.
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.comment.user.type != 'Bot' &&
+      github.event.comment.user.login == github.event.issue.user.login &&
+      !startsWith(github.event.comment.body, '/fine') &&
+      contains(github.event.issue.labels.*.name, 'more info required')
+
+    steps:
+      - name: Swap labels on reporter response
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const incompleteLabel = 'more info required';
+            const reviewLabel = 'awaiting maintainer review';
+
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              name: incompleteLabel,
+            }).catch(e => console.log(`Could not remove ${incompleteLabel}: ${e.message}`));
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: [reviewLabel],
+            });
+
+            console.log(`#${issueNumber}: reporter responded via comment, swapped to "${reviewLabel}".`);
+
+  restore-template-label:
+    runs-on: ubuntu-latest
+    # GitHub applies an issue form's `labels:` ONLY when the issue is opened through the
+    # web form. An issue created over the REST API / `gh issue create` with a body pasted
+    # from the template arrives with NO labels - and every downstream gate here keys off
+    # that label, so the whole validator would silently skip those reports.
+    # Restore the label from the body's own headings so the rest of the pipeline works.
+    # opened/reopened only: this repairs a label the form never applied, which is an
+    # open-time property. Running it on `edited` would re-add a label a maintainer had
+    # deliberately removed every time the reporter touched the body.
+    if: >
+      github.event_name == 'issues' &&
+      (github.event.action == 'opened' || github.event.action == 'reopened') &&
+      github.event.issue.pull_request == null
+    steps:
+      - name: Restore the label the issue form would have applied
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const body = issue.body || '';
+
+            const TEMPLATE_LABELS = ['bug', 'feature request', 'documentation'];
+            const labels = (issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
+            if (labels.some(l => TEMPLATE_LABELS.includes(l))) {
+              console.log(`#${issue.number}: already carries a template label - nothing to restore.`);
+              return;
+            }
+
+            // Headings unique to ONE template. Shared fields (Before You Submit,
+            // Additional Context) are deliberately excluded - they cannot
+            // discriminate between templates.
+            const DISTINCTIVE = {
+              'bug': [
+                'Describe the Bug', 'Affected Area', 'Microgreens Version',
+                'Home Assistant Version', 'Browser or App', 'Reproduction Steps',
+                'Expected Behavior', 'Logs / Error Evidence', 'Contributing a Fix',
+              ],
+              'feature request': [
+                'Problem or Motivation', 'Proposed Solution', 'Related Area',
+                'Alternatives Considered', 'Contributing an Implementation',
+              ],
+              'documentation': [
+                'Page / Section', 'What is Wrong or Missing?', 'Suggested Change',
+              ],
+            };
+            // Any heading level: a hand-written body uses `##` where the web form
+            // renders `###`, and both are the same field.
+            const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const headingRe = h => new RegExp('^#{1,6}[ \\t]+' + escapeRe(h) + '(?=[ \\t]|$)', 'im');
+
+            const scored = Object.entries(DISTINCTIVE)
+              .map(([label, hs]) => [label, hs.filter(h => headingRe(h).test(body)).length])
+              .sort((a, b) => b[1] - a[1]);
+            const [best, bestHits] = scored[0];
+            const runnerUpHits = scored[1] ? scored[1][1] : 0;
+
+            // Need at least two distinctive headings, and a clear winner, before
+            // labelling. A single stray heading must never mislabel a report.
+            if (bestHits < 2 || bestHits === runnerUpHits) {
+              console.log(`#${issue.number}: no clear template (${JSON.stringify(scored)}) - leaving unlabelled.`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number: issue.number, labels: [best],
+            });
+            console.log(`#${issue.number}: restored "${best}" label (${bestHits} distinctive headings).`);
+
+  validate-bug-report:
+    runs-on: ubuntu-latest
+    needs: restore-template-label
+    # `always()` because restore-template-label is skipped on workflow_dispatch, and a
+    # skipped `needs` would otherwise skip this job too. The `bug` gate itself moved
+    # INTO the script: the payload's label list is a snapshot taken before
+    # restore-template-label ran, so it must be re-read from the API.
+    if: >
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'issues' && github.event.issue.pull_request == null))
+
+    steps:
+      - name: Validate bug report completeness
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const isDryRun = context.eventName === 'workflow_dispatch';
+            let issue = isDryRun ? {
+              body: context.payload.inputs.issue_body,
+              number: parseInt(context.payload.inputs.issue_number) || null,
+              user: { login: 'dry-run-user', type: 'User' },
+              labels: [],
+            } : context.payload.issue;
+
+            // The `bug` gate lives here rather than in the job's `if:` because the event
+            // payload is a snapshot taken BEFORE restore-template-label ran. Re-read the
+            // issue so a label restored moments ago counts (an API-filed report has
+            // no labels at all in the payload).
+            if (!isDryRun) {
+              const fresh = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+              });
+              issue = fresh.data;
+              const names = (issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
+              if (!names.includes('bug')) {
+                console.log(`#${issue.number}: not labelled "bug" (${names.join(', ') || 'no labels'}) - skipping bug validation.`);
+                return;
+              }
+            }
+
+            const body = issue.body || '';
+            const incompleteLabel = 'more info required';
+
+            // ── Checks ────────────────────────────────────────────────────────────
+            const problems = [];
+
+            // Field headings are matched at ANY heading level. GitHub's issue form
+            // renders each field as `### Label`, but a body written by hand or posted
+            // over the API commonly uses `##` - the same field.
+            const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // First non-empty line under the heading (single-line fields).
+            const fieldLine = label => {
+              const m = body.match(new RegExp(
+                '^#{1,6}[ \\t]+' + escapeRe(label) + '[ \\t]*\\r?\\n+([^\\n#]+)', 'im'));
+              return m ? m[1].trim() : '';
+            };
+            // Everything up to the next heading of any level (multi-line fields).
+            // End-of-input is `(?![\s\S])`, not `$`: the `m` flag needed for `^` would
+            // otherwise make `$` match every line end and truncate to one line.
+            const fieldBlock = label => {
+              const m = body.match(new RegExp(
+                '^#{1,6}[ \\t]+' + escapeRe(label) + '[ \\t]*\\r?\\n([\\s\\S]*?)(?=\\n#{1,6}[ \\t]|(?![\\s\\S]))', 'im'));
+              return m ? m[1].trim() : '';
+            };
+
+            // 1. Microgreens version - must not be blank or placeholder; warn if outdated
+            const version = fieldLine('Microgreens Version');
+            if (!version || version === 'vX.Y.Z' || version === '_No response_') {
+              problems.push('**Microgreens Version** is missing. It is shown in HACS, or on the Microgreens hub device page (Settings → Devices & services → Microgreens).');
+            } else {
+              try {
+                const releasesResp = await github.rest.repos.listReleases({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  per_page: 10,
+                });
+                const published = releasesResp.data.filter(r => !r.draft);
+                const latestStable = published.find(r => !r.prerelease);
+                const latestPre = published.find(r => r.prerelease);
+
+                // Parse "1.2.3" or "1.2.3-alpha" into { parts: [1,2,3], isPre: bool }
+                const parseVer = v => {
+                  const s = v.replace(/^v/i, '').trim().toLowerCase();
+                  const [base, ...rest] = s.split('-');
+                  return { parts: base.split('.').map(Number), isPre: rest.length > 0 };
+                };
+                // Returns true only when releaseTag is strictly newer than reportedStr
+                const isNewer = (releaseTag, reportedStr) => {
+                  const rel = parseVer(releaseTag);
+                  const rep = parseVer(reportedStr);
+                  const len = Math.max(rel.parts.length, rep.parts.length);
+                  for (let i = 0; i < len; i++) {
+                    const a = rel.parts[i] || 0, b = rep.parts[i] || 0;
+                    if (a > b) return true;
+                    if (a < b) return false;
+                  }
+                  // Same numeric base: stable is newer than a pre-release of the same version
+                  return !rel.isPre && rep.isPre;
+                };
+
+                // A pre-release is only a valid upgrade target when it is numerically
+                // newer than the latest stable. If stable is ahead (or equal), it is
+                // always the one true latest and the pre-release is never suggested.
+                const alphaIsLatest = latestPre
+                  ? (!latestStable || isNewer(latestPre.tag_name, latestStable.tag_name))
+                  : false;
+
+                const suggestStable = latestStable && isNewer(latestStable.tag_name, version);
+                const suggestPre    = alphaIsLatest && latestPre && isNewer(latestPre.tag_name, version);
+
+                if (suggestStable || suggestPre) {
+                  const parts = [];
+                  if (suggestStable) parts.push(`\`${latestStable.tag_name}\` (stable)`);
+                  if (suggestPre)    parts.push(`\`${latestPre.tag_name}\` (pre-release)`);
+                  problems.push(
+                    `**Outdated version** (\`${version}\`): the current release${parts.length > 1 ? 's are' : ' is'} ${parts.join(' and ')}. ` +
+                    `Please upgrade and confirm the bug still exists on the latest version before we investigate - ` +
+                    `it may already be fixed. If it still reproduces, update this field with the version you tested.`
+                  );
+                }
+              } catch (releaseErr) {
+                console.log('Could not fetch releases for version check:', releaseErr.message);
+              }
+            }
+
+            // 2. HA version - must read as a version, and not be below the minimum.
+            // The placeholder (2026.2.0) is NOT treated as missing: it is the minimum,
+            // so a real report may carry exactly that. MIN_HA must match hacs.json
+            // (tests/test_issue_validator_workflow.py pins it).
+            const MIN_HA = '2026.2';
+            const haVersion = fieldLine('Home Assistant Version');
+            const haMatch = haVersion.match(/\b(\d{4})\.(\d{1,2})\b/);
+            if (!haMatch) {
+              problems.push('**Home Assistant Version** is missing. You can find it in Settings → About.');
+            } else {
+              const [minYear, minMonth] = MIN_HA.split('.').map(Number);
+              const year = Number(haMatch[1]), month = Number(haMatch[2]);
+              if (year < minYear || (year === minYear && month < minMonth)) {
+                problems.push(
+                  `**Home Assistant ${haMatch[1]}.${haMatch[2]} is not supported**: Microgreens needs ${MIN_HA} or newer. ` +
+                  'Please update Home Assistant and check whether the bug still happens.'
+                );
+              }
+            }
+
+            // 3. Logs / Error Evidence - must contain actual log/error output, an attached file, or a clear N/A with stated reason
+            const logContent = fieldBlock('Logs / Error Evidence');
+            // Accept "N/A" / "NA" only when a reason follows on the same line
+            // (e.g. "N/A - crashes before logs"), not a bare "N/A".
+            const logIsExplainedNA =
+              /^n\/?a(?:[ \t]*[-:][ \t]*|[ \t]+)\S[^\r\n]*$/i.test(logContent);
+            // Detect GitHub file attachments (pasted as markdown links)
+            const hasAttachment = /https:\/\/github\.com\/[^)]+\/files\//.test(logContent) ||
+              /https:\/\/github\.com\/user-attachments\//.test(logContent);
+            const hasLogs = logContent &&
+              logContent !== '_No response_' &&
+              logContent !== 'Paste log output or error messages here, or describe what file(s) you have attached above...' &&
+              (logContent.length > 50 || hasAttachment);
+            if (!hasLogs && !logIsExplainedNA) {
+              problems.push(
+                '**Logs / Error Evidence** are missing or appear empty. This is the most important piece of information for diagnosing bugs. ' +
+                'Please paste any relevant logs, error messages, or browser console output. At least one complete log line is enough - the section must contain more than 50 characters of actual error text (a bare `Error: null` passes the placeholder check but fails the length gate; paste the surrounding context). Debug logs are ideal when available. ' +
+                'See the **Logs / Error Evidence** section of the issue form for instructions on enabling debug logging. ' +
+                'If logs are **genuinely not applicable** to this report (for example: a wrong date or status with no error anywhere, or a pure layout issue in the panel or card), ' +
+                'replace the placeholder with `N/A` followed by a short one-line reason - for example: `N/A - card layout overlaps on a phone, no error logged`. ' +
+                'Do not write `N/A` just because collecting logs is inconvenient; bug reports without logs and without a valid N/A reason cannot be investigated.'
+              );
+            }
+
+
+            // ── Label management ─────────────────────────────────────────────────
+            const currentLabels = issue.labels.map(l => l.name);
+            const hasIncompleteLabel = currentLabels.includes(incompleteLabel);
+            const targetIssueNumber = isDryRun ? issue.number : issue.number;
+            const canPost = !isDryRun || (isDryRun && targetIssueNumber);
+
+            if (problems.length > 0) {
+              const problemList = problems.map(p => `- ${p}`).join('\n');
+              const comment = `👋 Hey @${issue.user.login}, thanks for the report!\n\nLooks like a few things are missing that we need before we can investigate:\n\n${problemList}\n\nPlease update the issue with the missing information. Without it, we won't be able to reproduce or debug the problem, and the issue may be closed.\n\n> **How to edit this issue:** click the three-dot menu (⋯) at the top-right of your post → *Edit*.\n\n_This check runs automatically. Once the issue is updated, it will be re-evaluated._`;
+
+              if (isDryRun) {
+                console.log('🧪 DRY RUN - validation result: INCOMPLETE');
+                console.log('Problems found:\n' + problemList);
+                console.log('Comment that would be posted:\n' + comment);
+                if (!canPost) process.exit(0);
+              }
+
+              if (canPost) {
+                // Add label if not already present
+                if (!hasIncompleteLabel) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: targetIssueNumber,
+                    labels: [incompleteLabel],
+                  });
+                }
+
+                // Only post a new comment if we haven't already (avoid comment spam on edits)
+                const comments = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: targetIssueNumber,
+                });
+
+                const botComments = comments.data.filter(
+                  c => c.user.type === 'Bot' && (c.body || '').includes('missing that we need before we can investigate')
+                );
+
+                if (botComments.length === 0) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: targetIssueNumber,
+                    body: comment,
+                  });
+                } else {
+                  // Update the existing bot comment instead
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: botComments[0].id,
+                    body: comment,
+                  });
+                }
+              }
+            } else if (hasIncompleteLabel || isDryRun) {
+              if (isDryRun) {
+                console.log('✅ DRY RUN - validation result: COMPLETE (all required fields present)');
+                if (!canPost) process.exit(0);
+              }
+
+              if (!isDryRun && hasIncompleteLabel) {
+                // Everything looks good - remove the label and leave a positive note
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: incompleteLabel,
+                });
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `Thanks for filling in the missing details, @${issue.user.login}! The issue looks complete now and has been queued for review. 🙌`,
+                });
+              }
+            }

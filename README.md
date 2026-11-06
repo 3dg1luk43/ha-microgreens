@@ -1,3 +1,9 @@
+[![Release](https://img.shields.io/github/v/release/3dg1luk43/ha-microgreens)](https://github.com/3dg1luk43/ha-microgreens/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+![Installs](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.ha_microgreens.total)
+[![Tests](https://github.com/3dg1luk43/ha-microgreens/actions/workflows/tests.yml/badge.svg)](https://github.com/3dg1luk43/ha-microgreens/actions/workflows/tests.yml)
+[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://ko-fi.com/3dg1luk43)
+
 # Microgreens for Home Assistant
 
 Plan, grow and harvest microgreen trays from Home Assistant. Keep track of which tray is in blackout, which needs water, and which is ready to cut, and get one short message a day telling you what to do.
@@ -20,6 +26,17 @@ Plan, grow and harvest microgreen trays from Home Assistant. Keep track of which
 
 ![Timeline](img/panel-timeline.png)
 
+<details>
+<summary>More screenshots</summary>
+
+| Crops | History |
+|---|---|
+| ![Crops](img/panel-crops.png) | ![History](img/panel-history.png) |
+| **A tray** | **On a phone** |
+| ![Tray dialog](img/dialog-tray.png) | ![Phone](img/mobile.png) |
+
+</details>
+
 ## How a tray moves through its stages
 
 | Stage | Meaning | Status |
@@ -36,10 +53,19 @@ A sowing with a date in the future is a **plan**: it shows on the timeline, remi
 
 ## Installation
 
-1. HACS > three dots > **Custom repositories** > `https://github.com/3dg1luk43/ha-microgreens`, category **Integration**.
-2. Install **Microgreens** and restart Home Assistant.
-3. **Settings > Devices & services > Add integration > Microgreens.**
-4. Open **Microgreens** in the sidebar.
+**HACS (recommended):** Microgreens is a custom repository in HACS.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=3dg1luk43&repository=ha-microgreens&category=integration)
+
+Or by hand: HACS > three dots > **Custom repositories** > `https://github.com/3dg1luk43/ha-microgreens`, category **Integration**. Click **Download**, then restart Home Assistant.
+
+**Manual:** copy `custom_components/ha_microgreens` from the [latest release](https://github.com/3dg1luk43/ha-microgreens/releases) into your `custom_components` folder and restart.
+
+Then add it:
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_microgreens)
+
+Or **Settings > Devices & services > Add integration > Microgreens**, and open **Microgreens** in the sidebar.
 
 A fresh install starts with six plots (A1 to A6) and a few common crops. Requires Home Assistant 2026.2 or newer.
 
@@ -156,6 +182,18 @@ cd devtools/testbox && ./up.sh --fresh --legacy && python3 hactl.py setup   # a 
 PLAYWRIGHT=/path/to/node_modules/playwright node devtools/screenshots.cjs    # panel and card screenshots from the box
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the rules and traps, and [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request, and [CLAUDE.md](CLAUDE.md) for the rules and traps.
 
-Issues and ideas: [github.com/3dg1luk43/ha-microgreens/issues](https://github.com/3dg1luk43/ha-microgreens/issues). License: AGPL-3.0-or-later.
+## Support
+
+- Bugs and ideas: [open an issue](https://github.com/3dg1luk43/ha-microgreens/issues/new/choose). Attach the diagnostics download from the integration page.
+- Security problems: report them privately, see [SECURITY.md](SECURITY.md).
+- What changed: [CHANGELOG.md](CHANGELOG.md).
+
+## Languages
+
+English, Čeština. To add one, see [Translations](CONTRIBUTING.md#translations).
+
+## License
+
+[AGPL-3.0-or-later](LICENSE). Free to use, study, modify and share; if others use a modified version over a network, you must offer them its source under the same licence.
