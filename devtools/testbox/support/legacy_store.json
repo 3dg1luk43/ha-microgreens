@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "microgreens",
+  "data": {
+    "plots": [
+      {
+        "id": "A1",
+        "label": "Plot A1"
+      },
+      {
+        "id": "A2",
+        "label": "Plot A2"
+      },
+      {
+        "id": "A3",
+        "label": "Plot A3"
+      },
+      {
+        "id": "A4",
+        "label": "Plot A4"
+      },
+      {
+        "id": "A5",
+        "label": "Plot A5"
+      },
+      {
+        "id": "A6",
+        "label": "Plot A6"
+      }
+    ],
+    "profiles": [
+      {
+        "id": "rukola",
+        "name": "Rukola",
+        "cover_days": 3,
+        "uncover_days": 8,
+        "watering_frequency_days": 1,
+        "notes": ""
+      },
+      {
+        "id": "koriandr",
+        "name": "Koriandr",
+        "cover_days": 6,
+        "uncover_days": 19,
+        "watering_frequency_days": 1,
+        "notes": ""
+      },
+      {
+        "id": "redkvicka",
+        "name": "Ředkvička",
+        "cover_days": 4,
+        "uncover_days": 10,
+        "watering_frequency_days": 1,
+        "notes": ""
+      }
+    ],
+    "deployments": [
+      {
+        "plot_id": "A1",
+        "sticker": "A1",
+        "plant_id": "rukola",
+        "plant_name": "Rukola",
+        "start_date": "2026-10-20",
+        "cover_end": "2026-10-23",
+        "harvest_date": "2026-10-31",
+        "watering_every_days": 1,
+        "next_watering_due": "2026-10-29",
+        "notes": ""
+      },
+      {
+        "plot_id": "A3",
+        "sticker": "A3",
+        "plant_id": "redkvicka",
+        "plant_name": "Ředkvička",
+        "start_date": "2026-10-27",
+        "cover_end": "2026-10-31",
+        "harvest_date": "2026-11-10",
+        "watering_every_days": 1,
+        "next_watering_due": "2026-10-28",
+        "notes": ""
+      }
+    ]
+  }
+}

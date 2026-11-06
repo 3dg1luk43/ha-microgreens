@@ -1,0 +1,4 @@
+# The test suite, as CI installs it. pytest-homeassistant-custom-component pins
+# one Home Assistant release (this one is homeassistant==2026.2.3, Python 3.13);
+# it brings pytest, voluptuous and PyYAML. Move the pin on purpose.
+pytest-homeassistant-custom-component==0.13.316

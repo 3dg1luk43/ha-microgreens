@@ -1,0 +1,62 @@
+#!/bin/sh
+# Microgreens pre-commit hook: the cheap checks that otherwise fail only in pytest
+# or CI, run on the STAGED content (what the commit will contain, not the working tree).
+#
+#   - no em dash (U+2014) in added lines
+#   - strings.json and translations/en.json identical
+#   - staged frontend JS parses (node --check)
+#   - ruff F,E9 on staged Python (if ruff is installed)
+#
+# Install:  devtools/install_hooks.sh     Bypass once: git commit --no-verify
+set -eu
+
+COMP="custom_components/ha_microgreens"
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -n "$staged" ] || exit 0
+failed=0
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+dash=$(printf '\342\200\224')
+if git diff --cached -U0 --no-color | grep '^+' | grep -v '^+++' | grep -q "$dash"; then
+  echo "pre-commit: em dash (U+2014) in an added line:" >&2
+  git diff --cached -U0 --no-color | grep -n "^+.*$dash" | head -5 >&2
+  failed=1
+fi
+
+case "$staged" in
+  *"$COMP/strings.json"*|*"$COMP/translations/en.json"*)
+    git show ":$COMP/strings.json" > "$tmp/strings.json"
+    git show ":$COMP/translations/en.json" > "$tmp/en.json"
+    if ! cmp -s "$tmp/strings.json" "$tmp/en.json"; then
+      echo "pre-commit: $COMP/strings.json and translations/en.json differ (copy one to the other)." >&2
+      failed=1
+    fi ;;
+esac
+
+if command -v node >/dev/null 2>&1; then
+  for f in $(printf '%s\n' "$staged" | grep -E "^$COMP/www/.*\.js$" || true); do
+    git show ":$f" > "$tmp/check.mjs"
+    if ! node --check "$tmp/check.mjs" 2>"$tmp/node.err"; then
+      echo "pre-commit: $f does not parse:" >&2
+      head -5 "$tmp/node.err" >&2
+      failed=1
+    fi
+  done
+fi
+
+py=$(printf '%s\n' "$staged" | grep -E '\.py$' || true)
+if [ -n "$py" ]; then
+  ruff=""
+  if command -v ruff >/dev/null 2>&1; then ruff="ruff"
+  elif python3 -m ruff --version >/dev/null 2>&1; then ruff="python3 -m ruff"; fi
+  if [ -n "$ruff" ]; then
+    for f in $py; do mkdir -p "$tmp/py/$(dirname "$f")"; git show ":$f" > "$tmp/py/$f"; done
+    if ! (cd "$tmp/py" && $ruff check --isolated --select F,E9 -q .) >&2; then
+      echo "pre-commit: ruff F,E9 failed on staged Python." >&2
+      failed=1
+    fi
+  fi
+fi
+
+[ "$failed" -eq 0 ] || { echo "Fix the above, or bypass once with: git commit --no-verify" >&2; exit 1; }

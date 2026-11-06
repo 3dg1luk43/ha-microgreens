@@ -1,0 +1,37 @@
+# What is committed: the integration, its tests, the dev tools and the public docs.
+# Everything below is local, generated or private.
+
+# Python / Node / editors
+__pycache__/
+*.py[cod]
+.venv/
+.venv_*/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.vscode/
+*.code-workspace
+.DS_Store
+*.log
+
+# Test and screenshot output
+screenshots/
+test-results/
+# The test box's generated Home Assistant config (.storage, DB, token, captured notifications).
+devtools/testbox/config/
+
+# Private: deploy target and secrets, production backups
+deploy_to_ha.sh
+backups/
+.env
+.mcp.json
+
+# Agent working files and reply drafts (local only)
+.claude/
+.agent/
+.gemini/
+.dev_notes/
+docs/internal/
+*_reply_draft.md

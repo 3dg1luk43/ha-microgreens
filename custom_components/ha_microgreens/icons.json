@@ -1,0 +1,82 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "watering_due": {
+        "default": "mdi:watering-can-outline",
+        "state": {
+          "on": "mdi:watering-can"
+        }
+      },
+      "needs_water": {
+        "default": "mdi:water-outline",
+        "state": {
+          "on": "mdi:water-alert"
+        }
+      }
+    },
+    "button": {
+      "water_all": {
+        "default": "mdi:watering-can"
+      },
+      "water": {
+        "default": "mdi:water-check"
+      }
+    },
+    "sensor": {
+      "tasks_today": {
+        "default": "mdi:clipboard-check-outline"
+      },
+      "ready_to_harvest": {
+        "default": "mdi:basket-outline"
+      },
+      "status": {
+        "default": "mdi:sprout",
+        "state": {
+          "empty": "mdi:tray",
+          "planned": "mdi:calendar-clock",
+          "covered": "mdi:weather-night",
+          "growing": "mdi:sprout",
+          "ready": "mdi:basket",
+          "overdue": "mdi:basket-unfill"
+        }
+      },
+      "harvest_date": {
+        "default": "mdi:calendar-check"
+      },
+      "progress": {
+        "default": "mdi:progress-clock"
+      }
+    },
+    "todo": {
+      "tasks": {
+        "default": "mdi:clipboard-list-outline"
+      }
+    }
+  },
+  "services": {
+    "sow": {
+      "service": "mdi:seed"
+    },
+    "water": {
+      "service": "mdi:watering-can"
+    },
+    "uncover": {
+      "service": "mdi:weather-sunny"
+    },
+    "harvest": {
+      "service": "mdi:content-cut"
+    },
+    "discard": {
+      "service": "mdi:delete-outline"
+    },
+    "shift": {
+      "service": "mdi:calendar-arrow-right"
+    },
+    "send_digest": {
+      "service": "mdi:message-text-outline"
+    },
+    "get_tasks": {
+      "service": "mdi:clipboard-list-outline"
+    }
+  }
+}
