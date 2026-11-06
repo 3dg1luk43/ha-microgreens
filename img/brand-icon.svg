@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Home Assistant style house: rounded by a same-colour stroke -->
+  <polygon points="256,52 460,236 460,460 52,460 52,236" fill="#18BCF2" stroke="#18BCF2" stroke-width="40" stroke-linejoin="round"/>
+  <!-- tray -->
+  <rect x="128" y="384" width="256" height="40" rx="20" fill="#ffffff"/>
+  <!-- small sprouts -->
+  <g stroke="#ffffff" stroke-width="14" stroke-linecap="round" fill="none">
+    <path d="M178 384 C 178 360, 176 344, 180 330"/>
+    <path d="M334 384 C 334 360, 336 344, 332 330"/>
+  </g>
+  <g fill="#7ED957" stroke="#ffffff" stroke-width="10" stroke-linejoin="round">
+    <path d="M180 332 C 168 300, 138 296, 122 310 C 130 334, 156 342, 180 332 Z"/>
+    <path d="M180 332 C 188 304, 212 296, 228 306 C 222 330, 202 340, 180 332 Z"/>
+    <path d="M332 332 C 344 300, 374 296, 390 310 C 382 334, 356 342, 332 332 Z"/>
+    <path d="M332 332 C 324 304, 300 296, 284 306 C 290 330, 310 340, 332 332 Z"/>
+  </g>
+  <!-- main sprout: stem is the HA circuit trunk, the node sits where the leaves meet -->
+  <path d="M256 384 C 256 340, 250 300, 256 250" stroke="#ffffff" stroke-width="22" stroke-linecap="round" fill="none"/>
+  <g fill="#7ED957" stroke="#ffffff" stroke-width="12" stroke-linejoin="round">
+    <path d="M256 252 C 232 182, 170 160, 132 190 C 146 250, 208 278, 256 252 Z"/>
+    <path d="M256 252 C 280 182, 342 160, 380 190 C 366 250, 304 278, 256 252 Z"/>
+  </g>
+  <circle cx="256" cy="252" r="20" fill="#ffffff"/>
+</svg>

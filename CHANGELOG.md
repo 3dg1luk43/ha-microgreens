@@ -26,6 +26,7 @@ A rebuild. The integration is now `ha_microgreens`; 0.1.x data is imported on fi
 - Services `sow`, `water`, `uncover`, `harvest`, `discard`, `shift`, `send_digest`, `get_tasks` (by plot ID or plot device).
 - Notifications to several targets (notify services or notify entities), with "Uncovered all" and "Watered all" on companion apps.
 - Backup export and import, diagnostics, English and Czech.
+- Brand icon (a sprout in a Home Assistant house) for Home Assistant and HACS; source in `img/brand-icon.svg`.
 
 ### Fixed
 
